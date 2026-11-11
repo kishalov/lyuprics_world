@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Camera } from "@/lib/camera";
 
 /* =====================================================================
@@ -97,6 +97,7 @@ export default function Sea({ camera, aspect, active }: { camera: Camera; aspect
   const ref = useRef<HTMLCanvasElement>(null);
   const activeRef = useRef(active);
   const wake = useRef<() => void>(() => {});
+  const [gen, setGen] = useState(0);
 
   useEffect(() => {
     activeRef.current = active;
@@ -106,7 +107,13 @@ export default function Sea({ camera, aspect, active }: { camera: Camera; aspect
   useEffect(() => {
     const canvas = ref.current;
     const gl = canvas?.getContext("webgl", { antialias: false, alpha: false, premultipliedAlpha: false });
-    if (!canvas || !gl) return; // без WebGL останется ровный цвет моря из CSS
+    if (!canvas || !gl || gl.isContextLost()) return; // без WebGL останется ровный цвет моря из CSS
+
+    // браузер может отобрать контекст (например, на телефоне в фоне) — тогда запускаемся заново
+    const onLost = (e: Event) => e.preventDefault();
+    const onRestored = () => setGen((g) => g + 1);
+    canvas.addEventListener("webglcontextlost", onLost);
+    canvas.addEventListener("webglcontextrestored", onRestored);
 
     const compile = (type: number, src: string) => {
       const s = gl.createShader(type)!;
@@ -119,7 +126,11 @@ export default function Sea({ camera, aspect, active }: { camera: Camera; aspect
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
     gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
     gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
+      return;
+    }
     gl.useProgram(prog);
 
     const buf = gl.createBuffer();
@@ -192,9 +203,15 @@ export default function Sea({ camera, aspect, active }: { camera: Camera; aspect
     return () => {
       cancelAnimationFrame(raf);
       wake.current = () => {};
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      // контекст не убиваем: React в режиме разработки запускает эффект дважды
+      // на том же холсте, и второму запуску нужен живой контекст
+      gl.deleteTexture(tex);
+      gl.deleteBuffer(buf);
+      gl.deleteProgram(prog);
+      canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
     };
-  }, [camera, aspect]);
+  }, [camera, aspect, gen]);
 
   return <canvas ref={ref} id="sea" aria-hidden="true" />;
 }
