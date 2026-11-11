@@ -26,9 +26,11 @@ header{position:relative;z-index:20;display:flex;align-items:center;gap:14px;pad
   background:radial-gradient(ellipse at 50% 45%,#f6ebdd 0%,var(--paper) 55%,#e6d2bb 100%)}
 .layer{position:absolute;inset:0;overflow:hidden}
 .layer.off{visibility:hidden}
+#mapLayer{background:#6f97a0}
+#sea{position:absolute;inset:0;width:100%;height:100%;display:block}
 .wrap{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 #mapWrap img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none;
-  filter:drop-shadow(0 6px 18px rgba(75,43,35,.18))}
+  filter:drop-shadow(0 4px 10px rgba(30,52,58,.35))}
 #regions{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 #regions path{fill:var(--rust);opacity:0;transition:opacity .35s;pointer-events:auto;cursor:pointer}
 .spot.region.hot .tag{opacity:1}

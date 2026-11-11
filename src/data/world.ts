@@ -40,8 +40,9 @@ export interface WorldNode {
   children?: WorldNode[];
 }
 
-/** Соотношение сторон общей карты (public/map.webp). Поменяйте, если поменяете карту. */
-export const MAP_IMAGE = "/map.webp";
+/** Общая карта с прозрачным морем. Делается из public/map.webp командой `npm run map`.
+    Соотношение сторон поменяйте, если поменяете карту. */
+export const MAP_IMAGE = "/map-island.webp";
 export const MAP_ASPECT = 3161 / 2553;
 
 export const WORLD: WorldNode = {

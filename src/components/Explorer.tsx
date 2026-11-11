@@ -10,6 +10,7 @@ import Header from "./Header";
 import InfoCard, { type CardData } from "./InfoCard";
 import Spots from "./Spots";
 import Interior from "./Interior";
+import Sea from "./Sea";
 
 type Layer = "map" | "scene" | "interior";
 type SpotsState = { layer: "map" | "scene"; id: string; key: number } | null;
@@ -251,6 +252,7 @@ export default function Explorer({ initialId }: { initialId: string }) {
       <Header currentId={cur} onGo={go} onBack={up} />
       <main id="stage" ref={stageRef}>
         <div className={"layer" + (layers.map ? "" : " off")} id="mapLayer">
+          <Sea camera={mapCam} aspect={MAP_ASPECT} active={layers.map} />
           <div className="wrap" id="mapWrap" ref={mapWrapRef}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={MAP_IMAGE} alt="Карта земель Ыш" draggable={false} />
