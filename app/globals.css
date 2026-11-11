@@ -20,9 +20,6 @@ header{position:relative;z-index:20;display:flex;align-items:center;gap:14px;pad
 #crumbs a:hover{border-bottom-color:var(--ink2)}
 #crumbs b{font-weight:400;color:var(--ink)}
 #crumbs i{font-style:normal;opacity:.45}
-#depth{margin-left:auto;display:flex;gap:6px;align-items:center;font-family:var(--hand);font-size:16px;color:var(--ink2);white-space:nowrap}
-#depth span{width:9px;height:9px;border-radius:50%;border:1.6px solid var(--ink);display:inline-block}
-#depth span.on{background:var(--ink)}
 
 /* ---------- stage & layers ---------- */
 #stage{position:relative;flex:1;overflow:hidden;
@@ -121,8 +118,7 @@ header{position:relative;z-index:20;display:flex;align-items:center;gap:14px;pad
 @media (max-width:760px){
   header{padding:8px 10px;gap:10px;min-height:50px}
   #crumbs{font-size:17px}
-  #depth{display:none}
-  #card{left:10px;right:10px;bottom:10px;max-width:none;padding:12px 14px}
+    #card{left:10px;right:10px;bottom:10px;max-width:none;padding:12px 14px}
   #card h2{font-size:25px}
   #interiorLayer{grid-template-columns:1fr;grid-template-rows:42% 58%}
   #chat{border-left:0;border-top:2px solid rgba(75,43,35,.2)}

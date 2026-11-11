@@ -1,12 +1,9 @@
 "use client";
 
-import { pathTo, urlFor, levelName } from "@/lib/world";
-
-const LEVELS = ["Мир", "Регион", "Локация", "Дом"];
+import { pathTo, urlFor } from "@/lib/world";
 
 export default function Header({ currentId, onGo, onBack }: { currentId: string; onGo: (id: string) => void; onBack: () => void }) {
   const path = pathTo(currentId);
-  const last = path[path.length - 1];
   return (
     <header>
       <button id="back" title="Назад (Esc)" aria-label="Назад" hidden={path.length < 2} onClick={onBack}>
@@ -34,12 +31,6 @@ export default function Header({ currentId, onGo, onBack }: { currentId: string;
           ),
         )}
       </nav>
-      <div id="depth">
-        {LEVELS.map((l, i) => (
-          <span key={l} className={i < path.length ? "on" : ""} title={l} />
-        ))}
-        &nbsp;{last ? levelName(last) : ""}
-      </div>
     </header>
   );
 }
