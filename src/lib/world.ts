@@ -43,12 +43,6 @@ export function allOpenableIds(): string[] {
     .map((n) => n.id);
 }
 
-export function allPlaceNames(): string[] {
-  return Object.values(byId)
-    .filter((n) => n.id !== "world" && (n.type === "map" || n.type === "leaf" || n.type === "scene"))
-    .map((n) => n.name);
-}
-
 export function levelName(n: WorldNode): string {
   if (n.level) return n.level;
   return ({ leaf: "Место", scene: "Локация", interior: "Дом", locked: "Дом" } as Record<string, string>)[n.type] ||

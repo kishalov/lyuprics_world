@@ -6,43 +6,32 @@ import { figureInner, roomInner } from "@/art/rooms";
 
 export type ChatMsg = { who: "me" | "npc"; text: string };
 
-// Переписка живёт, пока открыта вкладка: можно выйти из дома и вернуться.
+// Разговор живёт, пока открыта вкладка: можно выйти из дома и вернуться.
 const chats = new Map<string, ChatMsg[]>();
 
 export default function Interior({ npcId, npc, onLeave }: { npcId: string; npc: Npc; onLeave: () => void }) {
   const [log, setLog] = useState<ChatMsg[]>(() => chats.get(npcId) || [{ who: "npc", text: npc.hello }]);
   const [typing, setTyping] = useState(false);
-  const [input, setInput] = useState("");
   const logRef = useRef<HTMLDivElement>(null);
 
   const room = useMemo(() => roomInner(npc), [npc]);
   const figure = useMemo(() => figureInner(npc.look), [npc]);
+  const asked = new Set(log.filter((m) => m.who === "me").map((m) => m.text));
 
   useEffect(() => {
     chats.set(npcId, log);
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [log, npcId, typing]);
 
-  async function say(text: string) {
-    if (typing || !text.trim()) return;
-    const history: ChatMsg[] = [...log, { who: "me", text: text.trim() }];
-    setLog(history);
+  function say(q: string, a: string) {
+    if (typing) return;
+    setLog((l) => [...l, { who: "me", text: q }]);
     setTyping(true);
-    let answer = "";
-    try {
-      const r = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ npcId, history: history.slice(-14) }),
-      });
-      const data = await r.json();
-      answer = (data.text || "").trim();
-    } catch {
-      /* сеть недоступна — ответим заготовкой ниже */
-    }
-    if (!answer) answer = npc.fallback[history.length % npc.fallback.length] || "…";
-    setLog([...history, { who: "npc", text: answer }]);
-    setTyping(false);
+    // короткая пауза, будто житель думает
+    setTimeout(() => {
+      setLog((l) => [...l, { who: "npc", text: a }]);
+      setTyping(false);
+    }, 500 + Math.min(a.length * 8, 900));
   }
 
   return (
@@ -78,27 +67,12 @@ export default function Interior({ npcId, npc, onLeave }: { npcId: string; npc: 
           {typing && <div className="msg npc typing">{npc.name} задумался…</div>}
         </div>
         <div id="quick">
-          {npc.quick.map((q) => (
-            <button key={q} type="button" onClick={() => say(q)}>
+          {npc.talk.map(({ q, a }) => (
+            <button key={q} type="button" className={asked.has(q) ? "asked" : undefined} disabled={typing} onClick={() => say(q, a)}>
               {q}
             </button>
           ))}
         </div>
-        <form
-          id="say"
-          autoComplete="off"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const v = input;
-            setInput("");
-            say(v);
-          }}
-        >
-          <input id="msg" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Скажите что-нибудь…" maxLength={400} />
-          <button id="send" disabled={typing}>
-            Сказать
-          </button>
-        </form>
       </div>
     </>
   );
