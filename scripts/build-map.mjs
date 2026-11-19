@@ -1,0 +1,115 @@
+/* =====================================================================
+   Подготовка слоёв карты:  npm run map
+
+   Берёт PNG-слои из art-src/map/ (все на одном холсте, с прозрачностью),
+   обрезает пустоту вокруг каждого, сохраняет лёгкие WebP в public/map/
+   и записывает их положение в src/data/map-layers.generated.ts.
+
+   Имя файла = id слоя (латиница, дефисы). Его же пишут в world.ts в поле layer.
+   После перерисовки в Procreate просто замените PNG и запустите npm run map ещё раз.
+   ===================================================================== */
+import sharp from "sharp";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+const SRC = "art-src/map";
+const OUT = "public/map";
+const TS_OUT = "src/data/map-layers.generated.ts";
+const PREVIEW = "art-src/map-preview.png"; // необязательно: картинка для превью ссылки
+
+/** Подложка (материк) — рисуется первой и не нажимается */
+const BASE = "materik";
+/** Порядок наложения снизу вверх. Слои, которых нет в списке, встанут по нижнему краю (что ниже — то ближе). */
+const ORDER = [
+  "materik", "mys", "rynok", "kruzhye", "bezdna-hu", "pitychiy-les", "mistikorp", "holmy",
+  "hrebet", "zagorye", "barhonda", "amorantikum", "shepchushchee", "yagodnyy",
+];
+const PAD = 4; // запас в пикселях вокруг обрезки
+
+async function alphaBox(file) {
+  const img = sharp(file).ensureAlpha();
+  const { width, height } = await img.metadata();
+  const { data } = await img.clone().extractChannel(3).raw().toBuffer({ resolveWithObject: true });
+  let x0 = width, y0 = height, x1 = -1, y1 = -1;
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    for (let x = 0; x < width; x++) {
+      if (data[row + x] > 8) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return null;
+  x0 = Math.max(0, x0 - PAD); y0 = Math.max(0, y0 - PAD);
+  x1 = Math.min(width - 1, x1 + PAD); y1 = Math.min(height - 1, y1 + PAD);
+  return { width, height, left: x0, top: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
+const r = (n) => Math.round(n * 1000) / 1000;
+
+async function main() {
+  const files = (await fs.readdir(SRC)).filter((f) => f.toLowerCase().endsWith(".png"));
+  if (!files.length) throw new Error(`В ${SRC} нет PNG-файлов`);
+  await fs.rm(OUT, { recursive: true, force: true });
+  await fs.mkdir(OUT, { recursive: true });
+
+  let canvas = null;
+  const layers = [];
+  for (const f of files) {
+    const id = path.basename(f, path.extname(f));
+    if (!/^[a-z0-9-]+$/.test(id)) throw new Error(`Имя файла «${f}»: используйте латиницу, цифры и дефисы`);
+    const file = path.join(SRC, f);
+    const box = await alphaBox(file);
+    if (!box) { console.warn(`  пропущен пустой слой ${f}`); continue; }
+    if (!canvas) canvas = { w: box.width, h: box.height };
+    if (box.width !== canvas.w || box.height !== canvas.h)
+      throw new Error(`${f}: размер ${box.width}×${box.height}, а у остальных ${canvas.w}×${canvas.h}. Все слои должны быть на одном холсте.`);
+    await sharp(file)
+      .extract({ left: box.left, top: box.top, width: box.w, height: box.h })
+      .webp({ quality: 90, alphaQuality: 100, effort: 5 })
+      .toFile(path.join(OUT, `${id}.webp`));
+    layers.push({ id, box });
+    console.log(`  ${id}: ${box.w}×${box.h}`);
+  }
+
+  const z = (id, box) => {
+    const i = ORDER.indexOf(id);
+    return i >= 0 ? i : 1000 + box.top + box.h;
+  };
+  layers.sort((a, b) => z(a.id, a.box) - z(b.id, b.box));
+
+  const v = Date.now().toString(36); // сбрасывает кэш браузера после перерисовки
+  const items = layers.map(({ id, box }) =>
+    `  { id: ${JSON.stringify(id)}, src: "/map/${id}.webp?v=${v}", base: ${id === BASE}, ` +
+    `x: ${r((box.left / canvas.w) * 100)}, y: ${r((box.top / canvas.h) * 100)}, ` +
+    `w: ${r((box.w / canvas.w) * 100)}, h: ${r((box.h / canvas.h) * 100)} },`,
+  );
+  const ts = `/* Файл создан командой npm run map — не правьте вручную. */
+import type { MapLayer } from "./map-types";
+
+/** Размер холста в пикселях */
+export const MAP_CANVAS = { w: ${canvas.w}, h: ${canvas.h} };
+
+/** Слои снизу вверх. x, y, w, h — в процентах холста. */
+export const MAP_LAYERS: MapLayer[] = [
+${items.join("\n")}
+];
+`;
+  await fs.writeFile(TS_OUT, ts);
+
+  try {
+    await fs.access(PREVIEW);
+    await sharp(PREVIEW).flatten({ background: "#ffffff" }).resize(1200, 630, { fit: "contain", background: "#ffffff" }).jpeg({ quality: 85 }).toFile("public/og.jpg");
+    console.log("  превью ссылки: public/og.jpg");
+  } catch {}
+
+  console.log(`Готово: ${layers.length} слоёв, холст ${canvas.w}×${canvas.h}`);
+}
+
+main().catch((e) => {
+  console.error(e.message || e);
+  process.exit(1);
+});

@@ -1,8 +1,8 @@
 /* Рисунки-заглушки в стиле карты. Когда появятся настоящие картинки сцен,
    укажите в world.ts image: '/scenes/имя.webp' — заглушка больше не понадобится. */
 
-export const INK = '#4b2b23';
-export const PAPER = '#f2e4d4';
+export const INK = '#1c1917';
+export const PAPER = '#fbf8f1';
 
 export const rough =`<filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter>
 <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><line x1="0" y1="0" x2="0" y2="7" stroke="${INK}" stroke-width="1.2" opacity=".45"/></pattern>`;

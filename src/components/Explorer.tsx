@@ -1,21 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MAP_ASPECT, MAP_IMAGE, WORLD, type View, type WorldNode } from "@/data/world";
+import { WORLD, type WorldNode } from "@/data/world";
 import { NPCS } from "@/data/npcs";
 import { Camera, nextFrame, sleep } from "@/lib/camera";
-import { getNode, getParent, getParentId, idFromSlug, urlFor } from "@/lib/world";
+import { MAP_ASPECT, focusLayerOf, getNode, getParent, getParentId, idFromSlug, urlFor, viewOf } from "@/lib/world";
 import { SCENES } from "@/art/scenes";
 import Header from "./Header";
 import InfoCard, { type CardData } from "./InfoCard";
 import Spots from "./Spots";
 import Interior from "./Interior";
+import MapLayers, { hitLayer } from "./MapLayers";
 
 type Layer = "map" | "scene" | "interior";
 type SpotsState = { layer: "map" | "scene"; id: string; key: number } | null;
 
 const modeOf = (n: WorldNode): Layer => (n.type === "interior" ? "interior" : n.type === "scene" ? "scene" : "map");
-const mapViewOf = (n: WorldNode): View => n.view || { x: n.at!.x, y: n.at!.y, s: 3.4 };
+const mapViewOf = viewOf;
 const idFromPath = (path: string) => idFromSlug(path.split("/").filter(Boolean));
 
 export default function Explorer({ initialId }: { initialId: string }) {
@@ -33,6 +34,7 @@ export default function Explorer({ initialId }: { initialId: string }) {
   const [interiorId, setInteriorId] = useState<string | null>(null);
   const [spots, setSpots] = useState<SpotsState>(null);
   const [card, setCard] = useState<CardData | null>(null);
+  const [hot, setHot] = useState<string | null>(null); // id узла, чей рисунок под курсором
 
   // ссылки на актуальные значения для асинхронных переходов
   const curRef = useRef("world");
@@ -123,8 +125,8 @@ export default function Explorer({ initialId }: { initialId: string }) {
       if (sceneRef.current !== id) {
         const host = getParent(id)!;
         show("map", true);
-        if (curRef.current !== host.id && !instant) await mapCam.to(mapCam.clamp(host.view!), 1200);
-        const zoom = mapCam.to({ x: to.at!.x, y: to.at!.y, s: host.view!.s * 5 }, T(1500));
+        if (curRef.current !== host.id && !instant) await mapCam.to(mapCam.clamp(mapViewOf(host)), 1200);
+        const zoom = mapCam.to({ x: to.at!.x, y: to.at!.y, s: mapViewOf(host).s * 5 }, T(1500));
         await sleep(T(850));
         await veil(1, T(650));
         await zoom;
@@ -150,8 +152,8 @@ export default function Explorer({ initialId }: { initialId: string }) {
         await zoom;
       } else {
         show("map", true);
-        if (curRef.current !== host.id && !instant) await mapCam.to(mapCam.clamp(host.view!), 1200);
-        const zoom = mapCam.to({ x: to.at!.x, y: to.at!.y, s: host.view!.s * 4 }, T(1300));
+        if (curRef.current !== host.id && !instant) await mapCam.to(mapCam.clamp(mapViewOf(host)), 1200);
+        const zoom = mapCam.to({ x: to.at!.x, y: to.at!.y, s: mapViewOf(host).s * 4 }, T(1300));
         await sleep(T(750));
         await veil(1, T(550));
         await zoom;
@@ -177,6 +179,7 @@ export default function Explorer({ initialId }: { initialId: string }) {
     }
     busy.current = true;
     setCard(null);
+    setHot(null);
     try {
       await travel(id, !!opts.instant);
     } catch (e) {
@@ -242,6 +245,65 @@ export default function Explorer({ initialId }: { initialId: string }) {
     };
   }, [go, up, mapCam, sceneCam]);
 
+  /* ---------- наведение и нажатие на рисунки слоёв ---------- */
+  const layeredKids = (): WorldNode[] =>
+    spots?.layer === "map" && !busy.current ? (getNode(spots.id)?.children || []).filter((c) => c.layer) : [];
+  const nodeAt = (e: React.PointerEvent | React.MouseEvent): WorldNode | null => {
+    const kids = layeredKids();
+    const wrap = mapWrapRef.current;
+    if (!kids.length || !wrap) return null;
+    const r = wrap.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * 100;
+    const y = ((e.clientY - r.top) / r.height) * 100;
+    const layer = hitLayer(kids.map((k) => k.layer!), x, y);
+    return kids.find((k) => k.layer === layer) || null;
+  };
+  /* перетаскивание карты (когда она больше экрана) */
+  const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null);
+  const dragged = useRef(false);
+  const onMapDown = (e: React.PointerEvent) => {
+    if (busy.current || (e.pointerType === "mouse" && e.button !== 0)) return;
+    drag.current = { x: e.clientX, y: e.clientY, cx: mapCam.c.x, cy: mapCam.c.y, moved: false };
+  };
+  const onMapUp = () => {
+    dragged.current = !!drag.current?.moved;
+    drag.current = null;
+  };
+  const onMapMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (d) {
+      const dx = e.clientX - d.x;
+      const dy = e.clientY - d.y;
+      if (!d.moved && Math.hypot(dx, dy) > 6) {
+        d.moved = true;
+        setHot(null);
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      }
+      if (d.moved) {
+        const { w, h } = mapCam.base();
+        const s = mapCam.c.s;
+        mapCam.apply(mapCam.clamp({ x: d.cx - (dx / (w * s)) * 100, y: d.cy - (dy / (h * s)) * 100, s }));
+        return;
+      }
+    }
+    if (e.pointerType === "touch") return;
+    const n = nodeAt(e);
+    setHot(n ? n.id : null);
+  };
+  const onMapClick = (e: React.MouseEvent) => {
+    if (dragged.current) {
+      dragged.current = false;
+      return;
+    }
+    const n = nodeAt(e);
+    if (n) {
+      setHot(null);
+      go(n.id);
+    }
+  };
+  const hotLayer = hot ? getNode(hot)?.layer || null : null;
+  const focus = layers.interior ? null : focusLayerOf(cur) || null;
+
   const sceneNode = sceneId ? getNode(sceneId) : null;
   const interiorNode = interiorId ? getNode(interiorId) : null;
   const sceneArt = sceneNode?.art ? SCENES[sceneNode.art] : undefined;
@@ -250,11 +312,19 @@ export default function Explorer({ initialId }: { initialId: string }) {
     <div className="app">
       <Header currentId={cur} onGo={go} onBack={up} />
       <main id="stage" ref={stageRef}>
-        <div className={"layer" + (layers.map ? "" : " off")} id="mapLayer">
-          <div className="wrap" id="mapWrap" ref={mapWrapRef}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={MAP_IMAGE} alt="Карта земель Ыш" draggable={false} />
-            {spots?.layer === "map" && <Spots key={spots.key} node={getNode(spots.id)!} withRegions onOpen={go} />}
+        <div
+          className={"layer" + (layers.map ? "" : " off") + (hot ? " pointing" : "")}
+          id="mapLayer"
+          onPointerDown={onMapDown}
+          onPointerMove={onMapMove}
+          onPointerUp={onMapUp}
+          onPointerCancel={onMapUp}
+          onPointerLeave={() => setHot(null)}
+          onClick={onMapClick}
+        >
+          <div className="wrap" id="mapWrap" ref={mapWrapRef} role="img" aria-label="Карта земель Ыш">
+            <MapLayers hot={hotLayer} focus={focus} />
+            {spots?.layer === "map" && <Spots key={spots.key} node={getNode(spots.id)!} hot={hot} setHot={setHot} onOpen={go} />}
           </div>
         </div>
 
@@ -266,7 +336,7 @@ export default function Explorer({ initialId }: { initialId: string }) {
             ) : sceneArt ? (
               <div className="scene-art" dangerouslySetInnerHTML={{ __html: sceneArt() }} />
             ) : null}
-            {spots?.layer === "scene" && <Spots key={spots.key} node={getNode(spots.id)!} onOpen={go} />}
+            {spots?.layer === "scene" && <Spots key={spots.key} node={getNode(spots.id)!} hot={hot} setHot={setHot} onOpen={go} />}
           </div>
         </div>
 
@@ -277,7 +347,7 @@ export default function Explorer({ initialId }: { initialId: string }) {
         </div>
 
         <div id="veil" ref={veilRef} />
-        <InfoCard data={card} />
+        <InfoCard data={card} top={cur === "world"} />
       </main>
     </div>
   );
