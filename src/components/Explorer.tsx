@@ -4,20 +4,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { WORLD, type WorldNode } from "@/data/world";
 import { NPCS } from "@/data/npcs";
 import { Camera, nextFrame, sleep } from "@/lib/camera";
-import { MAP_ASPECT, focusLayerOf, getNode, getParent, getParentId, idFromSlug, urlFor, viewOf } from "@/lib/world";
+import { MAP_ASPECT, focusLayerOf, getNode, getParent, getParentId, idFromPath, urlFor, viewOf } from "@/lib/world";
 import { SCENES } from "@/art/scenes";
 import Header from "./Header";
 import InfoCard, { type CardData } from "./InfoCard";
 import Spots from "./Spots";
 import Interior from "./Interior";
 import MapLayers, { hitLayer } from "./MapLayers";
+import Sea from "./Sea";
 
 type Layer = "map" | "scene" | "interior";
 type SpotsState = { layer: "map" | "scene"; id: string; key: number } | null;
 
 const modeOf = (n: WorldNode): Layer => (n.type === "interior" ? "interior" : n.type === "scene" ? "scene" : "map");
 const mapViewOf = viewOf;
-const idFromPath = (path: string) => idFromSlug(path.split("/").filter(Boolean));
 
 export default function Explorer({ initialId }: { initialId: string }) {
   const stageRef = useRef<HTMLElement>(null);
@@ -193,7 +193,7 @@ export default function Explorer({ initialId }: { initialId: string }) {
       if (opts.replace) window.history.replaceState(null, "", url);
       else window.history.pushState(null, "", url);
     }
-    document.title = id === "world" ? "Карта земель Ыш" : `${node.name} — Земли Ыш`;
+    document.title = `${id === "world" ? "Карта мира" : node.name} — Люприки`;
     if (queued.current) {
       const q = queued.current;
       queued.current = null;
@@ -322,6 +322,7 @@ export default function Explorer({ initialId }: { initialId: string }) {
           onPointerLeave={() => setHot(null)}
           onClick={onMapClick}
         >
+          <Sea cam={mapCam} active={layers.map} />
           <div className="wrap" id="mapWrap" ref={mapWrapRef} role="img" aria-label="Карта земель Ыш">
             <MapLayers hot={hotLayer} focus={focus} />
             {spots?.layer === "map" && <Spots key={spots.key} node={getNode(spots.id)!} hot={hot} setHot={setHot} onOpen={go} />}

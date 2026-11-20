@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./site.css";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -7,8 +8,8 @@ const siteUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: { default: "Карта земель Ыш", template: "%s — Земли Ыш" },
-  description: "Интерактивная карта земель Ыш: приближайтесь к местам, заходите в дома и говорите с жителями.",
+  title: { default: "Люприки", template: "%s — Люприки" },
+  description: "Мир люприков: интерактивная карта и энциклопедия персонажей, мест, растений, существ и вещичек.",
   openGraph: { images: ["/og.jpg"] },
 };
 

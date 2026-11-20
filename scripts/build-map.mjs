@@ -50,6 +50,61 @@ async function alphaBox(file) {
 
 const r = (n) => Math.round(n * 1000) / 1000;
 
+/* ---------- море: карта расстояний до берега ----------
+   Силуэт суши берётся из подложки (материка): рисунки поверх неё, вроде маяка,
+   могут заходить на море, но берегом не считаются. Для каждой точки моря считается
+   расстояние до ближайшего берега в пикселях картинки шириной SEA_W (до 255,
+   с точностью 1/256: старший байт в красном канале, младший — в зелёном).
+   По этим расстояниям шейдер рисует мелководье, прибой и волны вокруг материка. */
+const SEA_W = 960;
+const INF = 1e20;
+
+/** Точное евклидово расстояние в одну сторону (Felzenszwalb & Huttenlocher) */
+function edt1d(f, n, out, v, z) {
+  let k = 0;
+  v[0] = 0; z[0] = -INF; z[1] = INF;
+  const cross = (q, p) => (f[q] + q * q - (f[p] + p * p)) / (2 * q - 2 * p);
+  for (let q = 1; q < n; q++) {
+    let s = cross(q, v[k]);
+    while (s <= z[k]) s = cross(q, v[--k]);
+    k++; v[k] = q; z[k] = s; z[k + 1] = INF;
+  }
+  k = 0;
+  for (let q = 0; q < n; q++) {
+    while (z[k + 1] < q) k++;
+    out[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
+  }
+}
+
+async function buildSea(canvas) {
+  const W = SEA_W;
+  const H = Math.round((W * canvas.h) / canvas.w);
+  const g = new Float64Array(W * H).fill(INF);
+  const { data } = await sharp(path.join(SRC, `${BASE}.png`)).ensureAlpha().resize(W, H, { fit: "fill" }).extractChannel(3).raw().toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < W * H; i++) if (data[i] > 100) g[i] = 0;
+  const n = Math.max(W, H);
+  const f = new Float64Array(n), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+  for (let x = 0; x < W; x++) {
+    for (let y = 0; y < H; y++) f[y] = g[y * W + x];
+    edt1d(f, H, d, v, z);
+    for (let y = 0; y < H; y++) g[y * W + x] = d[y];
+  }
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) f[x] = g[y * W + x];
+    edt1d(f, W, d, v, z);
+    for (let x = 0; x < W; x++) g[y * W + x] = d[x];
+  }
+  const out = Buffer.alloc(W * H * 3);
+  for (let i = 0; i < W * H; i++) {
+    const v = Math.min(65535, Math.round(Math.sqrt(g[i]) * 256));
+    out[i * 3] = v >> 8;
+    out[i * 3 + 1] = v & 255;
+  }
+  await sharp(out, { raw: { width: W, height: H, channels: 3 } }).png({ compressionLevel: 9 }).toFile(path.join(OUT, "sea.png"));
+  console.log(`  море: ${W}×${H}`);
+  return { w: W, h: H };
+}
+
 async function main() {
   const files = (await fs.readdir(SRC)).filter((f) => f.toLowerCase().endsWith(".png"));
   if (!files.length) throw new Error(`В ${SRC} нет PNG-файлов`);
@@ -81,6 +136,8 @@ async function main() {
   };
   layers.sort((a, b) => z(a.id, a.box) - z(b.id, b.box));
 
+  const sea = await buildSea(canvas);
+
   const v = Date.now().toString(36); // сбрасывает кэш браузера после перерисовки
   const items = layers.map(({ id, box }) =>
     `  { id: ${JSON.stringify(id)}, src: "/map/${id}.webp?v=${v}", base: ${id === BASE}, ` +
@@ -97,6 +154,9 @@ export const MAP_CANVAS = { w: ${canvas.w}, h: ${canvas.h} };
 export const MAP_LAYERS: MapLayer[] = [
 ${items.join("\n")}
 ];
+
+/** Карта расстояний до берега для моря: 1 пиксель = 1/${sea.w} ширины холста, расстояние = (R·256 + G) / 256 в этих пикселях */
+export const MAP_SEA = { src: "/map/sea.png?v=${v}", w: ${sea.w}, h: ${sea.h} };
 `;
   await fs.writeFile(TS_OUT, ts);
 
@@ -104,6 +164,8 @@ ${items.join("\n")}
     await fs.access(PREVIEW);
     await sharp(PREVIEW).flatten({ background: "#ffffff" }).resize(1200, 630, { fit: "contain", background: "#ffffff" }).jpeg({ quality: 85 }).toFile("public/og.jpg");
     console.log("  превью ссылки: public/og.jpg");
+    await sharp(PREVIEW).resize(1600, null, { withoutEnlargement: true }).webp({ quality: 82 }).toFile("public/map-cover.webp");
+    console.log("  обложка карты на главной: public/map-cover.webp");
   } catch {}
 
   console.log(`Готово: ${layers.length} слоёв, холст ${canvas.w}×${canvas.h}`);

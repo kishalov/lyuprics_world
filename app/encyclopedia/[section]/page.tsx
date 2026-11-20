@@ -1,0 +1,74 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { SECTIONS, entriesOf, getSection } from "@/data/encyclopedia";
+import { getNode, urlFor } from "@/lib/world";
+import { SectionIcon } from "@/components/site/Icons";
+import EntryGrid, { type EntryView } from "@/components/encyclopedia/EntryGrid";
+
+type Props = { params: Promise<{ section: string }> };
+
+export function generateStaticParams() {
+  return SECTIONS.map((s) => ({ section: s.id }));
+}
+export const dynamicParams = false;
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const s = getSection((await params).section);
+  return s ? { title: s.name, description: s.lead } : {};
+}
+
+export default async function SectionPage({ params }: Props) {
+  const section = getSection((await params).section);
+  if (!section) notFound();
+
+  // адрес на карте считаем здесь, чтобы не тащить карту мира в браузер
+  const entries: EntryView[] = entriesOf(section.id).map((e) => ({
+    ...e,
+    mapUrl: e.map && getNode(e.map) ? urlFor(e.map) : undefined,
+  }));
+
+  return (
+    <div data-sec={section.id}>
+      <nav className="wiki-crumbs" aria-label="Путь">
+        <Link href="/encyclopedia">Энциклопедия</Link>
+        <i>›</i>
+        <b>{section.name}</b>
+      </nav>
+
+      <div className="page-title with-ico">
+        <span className="section-ico">
+          <SectionIcon id={section.id} />
+        </span>
+        <div>
+          <h1>{section.name}</h1>
+          <p>{section.lead}</p>
+        </div>
+      </div>
+
+      <nav className="sec-chips" aria-label="Другие разделы">
+        {SECTIONS.map((s) => (
+          <Link
+            key={s.id}
+            href={`/encyclopedia/${s.id}`}
+            data-sec={s.id}
+            className={s.id === section.id ? "on" : undefined}
+            aria-current={s.id === section.id ? "page" : undefined}
+          >
+            <SectionIcon id={s.id} />
+            {s.name}
+          </Link>
+        ))}
+      </nav>
+
+      {entries.length ? (
+        <EntryGrid entries={entries} sectionName={section.name} />
+      ) : (
+        <div className="empty">
+          <SectionIcon id={section.id} />
+          <p>Здесь пока пусто. Скоро в разделе «{section.name}» появятся первые карточки.</p>
+        </div>
+      )}
+    </div>
+  );
+}

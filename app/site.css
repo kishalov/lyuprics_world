@@ -1,0 +1,187 @@
+/* Стили сайта вокруг карты: шапка, главная, энциклопедия.
+   Тот же язык, что у карты: плотный контур, плоские цвета, «наклеечные» тени. */
+
+/* ---------- цвета разделов энциклопедии ---------- */
+[data-sec="characters"] { --sec: #f19a86; --sec-bg: #fbe1da; }
+[data-sec="locations"] { --sec: #c0c47c; --sec-bg: #ecedd2; }
+[data-sec="flora"] { --sec: #8fc27a; --sec-bg: #dcefd2; }
+[data-sec="fauna"] { --sec: #f6d55c; --sec-bg: #fbf0c4; }
+[data-sec="items"] { --sec: #b49ad8; --sec-bg: #e9e0f5; }
+
+/* ---------- иконки ---------- */
+.ic { width: 1em; height: 1em; flex: none; color: var(--ink); overflow: visible; }
+.ic .ic-fill { fill: var(--sec, var(--olive)); }
+.ic .ic-hi { fill: var(--accent2); }
+.ic .ic-berry { fill: var(--accent); }
+.ic .ic-paper { fill: #fff; }
+
+/* ---------- название сайта и переключатель разделов ---------- */
+.brand { flex: none; display: inline-flex; align-items: center; gap: 9px; font-family: var(--hand); font-size: 27px; line-height: 1; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.brand-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); border: 2.5px solid var(--ink); box-shadow: 0 2px 0 var(--ink); transition: background .2s, transform .3s cubic-bezier(.3, 1.6, .5, 1); }
+.brand:hover .brand-dot { background: var(--accent2); transform: scale(1.2); }
+
+.site-nav { flex: none; display: flex; gap: 8px; margin-left: auto; }
+.site-nav a { display: inline-flex; align-items: center; gap: 7px; padding: 5px 14px 6px 9px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); text-decoration: none;
+  font-family: var(--hand); font-size: 19px; line-height: 1; box-shadow: 0 3px 0 var(--ink); transition: transform .15s, box-shadow .15s, background .2s; }
+.site-nav a .ic { width: 22px; height: 22px; }
+.site-nav a .ic .ic-fill { fill: #fff; }
+.site-nav a:hover { background: var(--accent2); }
+.site-nav a:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+.site-nav a.on { background: var(--olive); }
+
+/* шапка карты: название, назад, путь, глубина, разделы */
+.map-head .brand { padding-right: 14px; border-right: 2px dashed rgba(28, 25, 23, .25); }
+.map-head #back[hidden] { display: none; }
+.map-head .site-nav { margin-left: 10px; }
+
+/* обычная шапка */
+.site-head { position: sticky; top: 0; }
+
+/* карточка места на карте → энциклопедия */
+#card .to-wiki { margin-top: 12px; font-size: 17px; }
+
+/* ---------- обычные страницы ---------- */
+.site { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+.site-main { flex: 1; width: 100%; max-width: 1160px; margin: 0 auto; padding: 28px 16px 72px; }
+
+.page-title { margin: 6px 0 24px; }
+.page-title h1 { margin: 0; font-family: var(--hand); font-weight: 400; font-size: clamp(40px, 6vw, 60px); line-height: 1; }
+.page-title p { margin: 8px 0 0; max-width: 60ch; color: var(--ink2); font-size: 17px; line-height: 1.5; }
+.page-title.with-ico { display: flex; align-items: center; gap: 18px; }
+
+.section-ico { flex: none; display: grid; place-items: center; width: 76px; height: 76px; border-radius: 22px; background: var(--sec-bg); border: var(--line) solid var(--ink); box-shadow: 0 4px 0 var(--ink); transition: background .2s; }
+.section-ico .ic { width: 48px; height: 48px; }
+
+/* кнопки-ссылки */
+.to-map, .to-wiki { display: inline-block; padding: 6px 16px 7px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--accent2); color: var(--ink); text-decoration: none;
+  font-family: var(--hand); font-size: 19px; line-height: 1.1; box-shadow: 0 3px 0 var(--ink); transition: transform .15s, box-shadow .15s, background .2s; }
+.to-map:hover, .to-wiki:hover { background: var(--olive); }
+.to-map:active, .to-wiki:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+
+/* ---------- главная ---------- */
+.home { max-width: 1100px; }
+.hero { text-align: center; margin: 10px 0 30px; }
+.hero h1 { margin: 0; font-family: var(--hand); font-weight: 400; font-size: clamp(60px, 11vw, 112px); line-height: .95; }
+.hero p { margin: 10px auto 0; max-width: 46ch; color: var(--ink2); font-size: 18px; line-height: 1.5; }
+
+.doors { display: grid; grid-template-columns: 1.35fr 1fr; gap: 22px; align-items: stretch; }
+.door { display: flex; flex-direction: column; overflow: hidden; background: var(--card); color: var(--ink); text-decoration: none;
+  border: var(--line) solid var(--ink); border-radius: 26px; box-shadow: 0 6px 0 var(--ink); }
+.door-map { transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), box-shadow .25s; }
+.door-map:hover, .door-map:focus-visible { transform: translateY(-4px); box-shadow: 0 10px 0 var(--ink); outline: none; }
+.door-pic { display: block; padding: 14px; background: radial-gradient(ellipse at 50% 45%, #ffffff 0%, var(--paper) 60%, #f1ebdc 100%); border-bottom: var(--line) solid var(--ink); }
+.door-pic img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; transition: transform .6s cubic-bezier(.3, 1.4, .5, 1); }
+.door-map:hover .door-pic img { transform: scale(1.04); }
+.door-text, .door-cover { display: flex; flex-direction: column; gap: 6px; padding: 18px 22px 20px; color: var(--ink2); font-size: 16px; line-height: 1.45; text-decoration: none; }
+.door-title { display: flex; align-items: center; gap: 10px; font-family: var(--hand); font-size: 36px; line-height: 1; color: var(--ink); transition: color .2s; }
+.door-title .ic { width: 38px; height: 38px; }
+.door-cover:hover .door-title, .door-map:hover .door-title { color: var(--accent); }
+.door-sections { list-style: none; margin: 0; padding: 0 16px 18px; display: flex; flex-direction: column; gap: 9px; }
+.door-sections a { display: flex; align-items: center; gap: 12px; padding: 7px 14px 8px 10px; border: 2px solid var(--ink); border-radius: 16px; background: var(--sec-bg); color: var(--ink); text-decoration: none;
+  font-family: var(--hand); font-size: 22px; line-height: 1; transition: transform .2s cubic-bezier(.3, 1.6, .5, 1), background .2s; }
+.door-sections a .ic { width: 30px; height: 30px; }
+.door-sections a:hover { background: var(--sec); transform: translateX(5px); }
+
+/* ---------- энциклопедия: разделы ---------- */
+.sections { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 18px; }
+.section-tile { height: 100%; display: flex; align-items: center; gap: 16px; padding: 18px; background: var(--card); color: var(--ink); text-decoration: none;
+  border: var(--line) solid var(--ink); border-radius: 22px; box-shadow: 0 5px 0 var(--ink); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), box-shadow .25s, background .2s; }
+.section-tile:hover, .section-tile:focus-visible { transform: translateY(-4px); box-shadow: 0 9px 0 var(--ink); background: var(--sec-bg); outline: none; }
+.section-tile:hover .section-ico { background: var(--card); }
+.section-text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.section-text b { font-family: var(--hand); font-weight: 400; font-size: 30px; line-height: 1.05; }
+.section-text span { color: var(--ink2); font-size: 15px; line-height: 1.4; }
+.section-text small { margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--ink2); }
+
+/* путь и переключатель разделов */
+.wiki-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 14px; font-family: var(--hand); font-size: 20px; }
+.wiki-crumbs a { color: var(--ink2); text-decoration: none; border-bottom: 2px solid transparent; }
+.wiki-crumbs a:hover { color: var(--ink); border-bottom-color: var(--accent); }
+.wiki-crumbs i { font-style: normal; opacity: .4; }
+.wiki-crumbs b { font-weight: 400; }
+
+.sec-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
+.sec-chips a { display: inline-flex; align-items: center; gap: 7px; padding: 5px 14px 6px 8px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); text-decoration: none;
+  font-family: var(--hand); font-size: 18px; line-height: 1; transition: background .2s, box-shadow .15s; }
+.sec-chips a .ic { width: 22px; height: 22px; }
+.sec-chips a:hover { background: var(--sec-bg); }
+.sec-chips a.on { background: var(--sec); box-shadow: 0 3px 0 var(--ink); }
+
+/* ---------- карточки ---------- */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 22px 20px; }
+.cards li { scroll-margin-top: 90px; animation: cardIn .45s both; animation-delay: calc(var(--i, 0) * 55ms); }
+@keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.card { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--card); color: var(--ink); text-decoration: none;
+  border: var(--line) solid var(--ink); border-radius: 20px; box-shadow: 0 5px 0 var(--ink); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), box-shadow .25s; }
+.card:hover, .card:focus-visible { transform: translateY(-4px) rotate(-.4deg); box-shadow: 0 9px 0 var(--ink); outline: none; }
+.card .pic { aspect-ratio: 4 / 3; border-bottom: var(--line) solid var(--ink); }
+.card-body { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px 16px; }
+.card h3 { margin: 2px 0 0; font-family: var(--hand); font-weight: 400; font-size: 28px; line-height: 1.05; }
+.card p { margin: 4px 0 0; color: var(--ink2); font-size: 14.5px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.on-map { margin-top: auto; padding-top: 10px; font-size: 13px; font-weight: 700; color: var(--ink2); }
+.on-map::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: var(--accent); border: 2px solid var(--ink); vertical-align: -1px; }
+
+.kind { align-self: flex-start; padding: 2px 10px 3px; font-family: var(--hand); font-size: 15px; line-height: 1; background: var(--sec-bg); border: 2px solid var(--ink); border-radius: 999px; }
+
+/* картинка или заглушка: буква и значок раздела */
+.pic { display: block; width: 100%; object-fit: cover; background: var(--sec-bg); }
+.pic.stub { position: relative; display: grid; place-items: center; overflow: hidden;
+  background: var(--sec-bg) radial-gradient(circle at 1px 1px, rgba(28, 25, 23, .13) 1.2px, transparent 1.6px) 0 0 / 16px 16px; }
+.stub-letter { font-family: var(--hand); font-size: 96px; line-height: 1; color: var(--card); -webkit-text-stroke: 2.5px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); }
+.stub-ico { position: absolute; right: 12px; bottom: 10px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--card); border: 2px solid var(--ink); }
+.stub-ico .ic { width: 28px; height: 28px; }
+
+.empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px 20px; text-align: center; color: var(--ink2); border: 2.5px dashed rgba(28, 25, 23, .3); border-radius: 22px; }
+.empty .ic { width: 64px; height: 64px; }
+.empty p { margin: 0; max-width: 40ch; font-size: 16px; line-height: 1.5; }
+
+/* ---------- открытая карточка ---------- */
+html:has(dialog.entry[open]) { overflow: hidden; }
+dialog.entry { width: min(780px, calc(100% - 32px)); max-height: calc(100dvh - 48px); padding: 0; overflow: auto; background: var(--card); color: var(--ink);
+  border: var(--line) solid var(--ink); border-radius: 24px; box-shadow: 0 7px 0 var(--ink); }
+dialog.entry[open] { animation: popIn .35s cubic-bezier(.3, 1.5, .5, 1); }
+dialog.entry::backdrop { background: rgba(251, 248, 241, .72); backdrop-filter: blur(3px); }
+@keyframes popIn { from { opacity: 0; transform: translateY(16px) scale(.97); } }
+.entry article { position: relative; display: grid; grid-template-columns: 300px 1fr; }
+.entry .pic { height: 100%; min-height: 320px; border-right: var(--line) solid var(--ink); }
+.entry .stub-letter { font-size: 140px; }
+.entry-body { padding: 24px 28px 28px; }
+.entry h2 { margin: 8px 48px 12px 0; font-family: var(--hand); font-weight: 400; font-size: 42px; line-height: 1; }
+.entry p { margin: 0 0 12px; font-size: 16px; line-height: 1.6; }
+.fact { margin: 16px 0 4px; padding: 12px 16px; background: #fdf3c8; border: 2px solid var(--ink); border-radius: 14px; font-size: 15px; line-height: 1.5; }
+.fact b { display: block; margin-bottom: 2px; font-family: var(--hand); font-weight: 400; font-size: 20px; }
+.entry .to-map { margin-top: 14px; }
+.entry .x { position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; display: grid; place-items: center; padding: 0 0 3px; cursor: pointer;
+  font-size: 28px; line-height: 1; background: var(--card); border: var(--line) solid var(--ink); border-radius: 50%; box-shadow: 0 3px 0 var(--ink); }
+.entry .x:hover { background: var(--accent2); }
+.entry .x:active { transform: translateY(3px); box-shadow: none; }
+
+/* ---------- телефоны ---------- */
+@media (max-width: 760px) {
+  .map-head .brand { font-size: 0; gap: 0; padding-right: 10px; }
+  .map-head .site-nav { margin-left: auto; }
+  .map-head .site-nav span { display: none; }
+  .map-head .site-nav a { padding: 6px; }
+  .doors { grid-template-columns: 1fr; }
+  .site-main { padding-top: 20px; }
+}
+@media (max-width: 640px) {
+  .entry article { grid-template-columns: 1fr; }
+  .entry .pic { height: auto; min-height: 0; aspect-ratio: 16 / 10; border-right: 0; border-bottom: var(--line) solid var(--ink); }
+  .entry-body { padding: 18px 18px 22px; }
+  .entry h2 { font-size: 34px; margin-right: 0; }
+  .page-title.with-ico { gap: 14px; }
+  .section-ico { width: 60px; height: 60px; border-radius: 18px; }
+  .section-ico .ic { width: 38px; height: 38px; }
+}
+@media (max-width: 560px) {
+  .card .pic { aspect-ratio: 16 / 9; }
+}
+@media (max-width: 480px) {
+  .site-head .site-nav span { display: none; }
+  .site-head .site-nav a { padding: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cards li, dialog.entry[open] { animation: none; }
+  .card, .section-tile, .door-map, .door-pic img, .door-sections a { transition: none; }
+}

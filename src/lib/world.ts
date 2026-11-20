@@ -22,19 +22,32 @@ export function pathTo(id: string): WorldNode[] {
   return out;
 }
 
-/** Адрес страницы для узла: /pitychiy-les/kruzhye */
+/** Карта живёт по адресу /map, всё остальное — внутри */
+export const MAP_ROOT = "/map";
+
+/** Сегменты адреса внутри карты: ["pitychiy-les", "kruzhye"] */
+export const slugFor = (id: string): string[] => pathTo(id).slice(1).map((n) => n.id);
+
+/** Адрес страницы для узла: /map/pitychiy-les/kruzhye */
 export function urlFor(id: string): string {
-  const p = pathTo(id).slice(1).map((n) => n.id);
-  return "/" + p.join("/");
+  const s = slugFor(id);
+  return s.length ? `${MAP_ROOT}/${s.join("/")}` : MAP_ROOT;
 }
 
-/** Узел по адресу: берётся последний сегмент */
+/** Узел по сегментам адреса внутри карты: берётся последний сегмент */
 export function idFromSlug(slug?: string[]): string | undefined {
   if (!slug || slug.length === 0) return "world";
   const id = slug[slug.length - 1];
   if (!byId[id]) return undefined;
   // адрес должен совпадать с настоящим путём узла
-  return urlFor(id) === "/" + slug.join("/") ? id : undefined;
+  return slugFor(id).join("/") === slug.join("/") ? id : undefined;
+}
+
+/** Узел по полному пути страницы (/map/kruzhye); не карта — undefined */
+export function idFromPath(pathname: string): string | undefined {
+  const parts = pathname.split("/").filter(Boolean).map(decodeURIComponent);
+  if (parts[0] !== MAP_ROOT.slice(1)) return undefined;
+  return idFromSlug(parts.slice(1));
 }
 
 /** Все узлы, которые можно открыть как страницу (для генерации статических адресов) */

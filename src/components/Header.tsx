@@ -1,6 +1,7 @@
 "use client";
 
 import { pathTo, urlFor, levelName } from "@/lib/world";
+import { Brand, SiteNav } from "./site/SiteNav";
 
 const LEVELS = ["Мир", "Регион", "Локация", "Дом"];
 
@@ -8,7 +9,8 @@ export default function Header({ currentId, onGo, onBack }: { currentId: string;
   const path = pathTo(currentId);
   const last = path[path.length - 1];
   return (
-    <header>
+    <header className="map-head">
+      <Brand />
       <button id="back" title="Назад (Esc)" aria-label="Назад" hidden={path.length < 2} onClick={onBack}>
         <svg width="18" height="18" viewBox="0 0 20 20">
           <path d="M13 3 L6 10 L13 17" fill="none" stroke="#4b2b23" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -40,6 +42,7 @@ export default function Header({ currentId, onGo, onBack }: { currentId: string;
         ))}
         &nbsp;{last ? levelName(last) : ""}
       </div>
+      <SiteNav active="map" onMap={() => onGo("world")} />
     </header>
   );
 }
