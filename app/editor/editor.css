@@ -41,6 +41,10 @@
 .ed-side ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ed-side li { display: flex; align-items: center; gap: 4px; border: 2px solid transparent; border-radius: 16px; padding: 2px; }
 .ed-side li.on { background: var(--sec-bg); border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.ed-side li.drop { background: var(--sec-bg); border: 2px dashed var(--accent); box-shadow: none; transform: scale(1.03); transition: transform .15s; }
+.ed-mini.dragging { opacity: .45; }
+.ed-mini[draggable="true"] { cursor: grab; }
+.ed-drag-hint { margin: -8px 0 0; }
 .ed-sec { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: none; border: 0; cursor: pointer; text-align: left; font-family: var(--hand); font-size: 20px; line-height: 1.1; border-radius: 12px; }
 .ed-sec:hover { background: rgba(255, 255, 255, .6); }
 .ed-sec .ic { width: 28px; height: 28px; }

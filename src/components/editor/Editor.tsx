@@ -97,6 +97,10 @@ export default function Editor({ places }: { places: Place[] }) {
   /** Новые раздел/карточка: их адрес подстраивается под название, пока его не поменяли вручную */
   const [fresh, setFresh] = useState<Set<string>>(new Set());
 
+  /** Перетаскивание карточки на раздел в списке слева */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropSec, setDropSec] = useState<string | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
@@ -306,6 +310,14 @@ export default function Editor({ places }: { places: Place[] }) {
     setData((d) => ({ ...d, entries: d.entries.filter((x) => x.id !== e.id) }));
   };
 
+  /** Перенести карточку в другой раздел — она встаёт последней */
+  const moveToSection = (e: Entry, target: string) => {
+    if (e.section === target) return;
+    setData((d) => ({ ...d, entries: [...d.entries.filter((x) => x.id !== e.id), { ...e, section: target }] }));
+    const t = data.sections.find((s) => s.id === target);
+    say("ok", `Карточка «${e.name || "без названия"}» перенесена в раздел «${t?.name || target}». Не забудьте сохранить.`);
+  };
+
   /** Сдвинуть карточку внутри её раздела */
   const moveEntry = (e: Entry, dir: number) =>
     setData((d) => {
@@ -401,7 +413,25 @@ export default function Editor({ places }: { places: Place[] }) {
           <div className="ed-side-title">Разделы</div>
           <ul>
             {data.sections.map((s, i) => (
-              <li key={i} className={s.id === secId ? "on" : undefined} style={secStyle(s)}>
+              <li
+                key={i}
+                className={(s.id === secId ? "on" : "") + (dropSec === s.id ? " drop" : "")}
+                style={secStyle(s)}
+                onDragOver={(ev) => {
+                  if (!dragId || s.id === secId) return;
+                  ev.preventDefault();
+                  ev.dataTransfer.dropEffect = "move";
+                  setDropSec(s.id);
+                }}
+                onDragLeave={() => setDropSec((cur) => (cur === s.id ? null : cur))}
+                onDrop={(ev) => {
+                  ev.preventDefault();
+                  const e = data.entries.find((x) => x.id === dragId);
+                  if (e) moveToSection(e, s.id);
+                  setDragId(null);
+                  setDropSec(null);
+                }}
+              >
                 <button className="ed-sec" onClick={() => setSecId(s.id)}>
                   <SectionIcon icon={s.icon} />
                   <span>{s.name || "Без названия"}</span>
@@ -536,13 +566,31 @@ export default function Editor({ places }: { places: Place[] }) {
                 </button>
               </div>
 
+              {secEntries.length > 0 && data.sections.length > 1 && (
+                <p className="ed-hint ed-drag-hint">
+                  {dragId ? "Отпустите карточку на нужном разделе слева." : "Чтобы перенести карточку в другой раздел, перетащите её на раздел слева или выберите раздел в самой карточке."}
+                </p>
+              )}
               {secEntries.length === 0 ? (
                 <div className="ed-empty">В этом разделе пока нет карточек.</div>
               ) : (
                 <ul className="ed-cards" style={secStyle(sec)}>
                   {secEntries.map((e, i) => (
                     <li key={e.id + i}>
-                      <button className="ed-mini" onClick={() => setEditId(e.id)}>
+                      <button
+                        className={"ed-mini" + (dragId === e.id ? " dragging" : "")}
+                        onClick={() => setEditId(e.id)}
+                        draggable
+                        onDragStart={(ev) => {
+                          ev.dataTransfer.effectAllowed = "move";
+                          ev.dataTransfer.setData("text/plain", e.name || e.id);
+                          setDragId(e.id);
+                        }}
+                        onDragEnd={() => {
+                          setDragId(null);
+                          setDropSec(null);
+                        }}
+                      >
                         <Pic src={imgSrc(e.image)} name={e.name} icon={sec.icon} />
                         <span className="ed-mini-body">
                           {e.kind && <span className="kind">{e.kind}</span>}
@@ -579,6 +627,7 @@ export default function Editor({ places }: { places: Place[] }) {
           onRename={(name) => renameEntry(editing, name)}
           onId={(id) => setEntryId(editing, id)}
           onPatch={(patch) => updEntry(editing.id, patch)}
+          onMove={(target) => moveToSection(editing, target)}
           onField={(key, v) => setField(editing, key, v)}
           onImage={(f) => setImage(editing, f)}
           onRemoveImage={() => removeImage(editing)}
@@ -652,6 +701,7 @@ function EntryDialog(props: {
   onRename: (name: string) => void;
   onId: (id: string) => void;
   onPatch: (patch: Partial<Entry>) => void;
+  onMove: (section: string) => void;
   onField: (key: "kind" | "fact" | "map", value: string) => void;
   onImage: (f: File) => void;
   onRemoveImage: () => void;
@@ -736,7 +786,7 @@ function EntryDialog(props: {
           <div className="ed-grid2">
             <label className="ed-field">
               <span>Раздел</span>
-              <select value={e.section} onChange={(ev) => props.onPatch({ section: ev.target.value })}>
+              <select value={e.section} onChange={(ev) => props.onMove(ev.target.value)}>
                 {sections.map((s, i) => (
                   <option key={i} value={s.id}>
                     {s.name || "Без названия"}
