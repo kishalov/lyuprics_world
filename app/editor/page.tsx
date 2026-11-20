@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Editor from "@/components/editor/Editor";
 import { mapPlaces } from "@/lib/world";
+import { pageMeta } from "@/lib/meta";
 import "./editor.css";
 
 export const metadata: Metadata = {
-  title: "Редактор",
+  ...pageMeta({ title: "Редактор", path: "/editor" }),
   robots: { index: false, follow: false },
 };
 

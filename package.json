@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "map": "node scripts/build-map.mjs"
+    "map": "node scripts/build-map.mjs",
+    "og": "node scripts/build-og.mjs"
   },
   "dependencies": {
     "next": "^16.4.6",

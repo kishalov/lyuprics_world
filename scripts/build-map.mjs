@@ -15,7 +15,7 @@ import path from "node:path";
 const SRC = "art-src/map";
 const OUT = "public/map";
 const TS_OUT = "src/data/map-layers.generated.ts";
-const PREVIEW = "art-src/map-preview.png"; // необязательно: картинка для превью ссылки
+const PREVIEW = "art-src/map-preview.png"; // необязательно: из неё делается обложка карты на главной
 
 /** Подложка (материк) — рисуется первой и не нажимается */
 const BASE = "materik";
@@ -162,8 +162,6 @@ export const MAP_SEA = { src: "/map/sea.png?v=${v}", w: ${sea.w}, h: ${sea.h} };
 
   try {
     await fs.access(PREVIEW);
-    await sharp(PREVIEW).flatten({ background: "#ffffff" }).resize(1200, 630, { fit: "contain", background: "#ffffff" }).jpeg({ quality: 85 }).toFile("public/og.jpg");
-    console.log("  превью ссылки: public/og.jpg");
     await sharp(PREVIEW).resize(1600, null, { withoutEnlargement: true }).webp({ quality: 82 }).toFile("public/map-cover.webp");
     console.log("  обложка карты на главной: public/map-cover.webp");
   } catch {}

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { SECTIONS, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
 import { getNode, urlFor } from "@/lib/world";
 import { SectionIcon } from "@/components/site/Icons";
+import { pageMeta } from "@/lib/meta";
 import EntryGrid, { type EntryView } from "@/components/encyclopedia/EntryGrid";
 
 type Props = { params: Promise<{ section: string }> };
@@ -15,7 +16,14 @@ export const dynamicParams = false;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = getSection((await params).section);
-  return s ? { title: s.name, description: s.lead } : {};
+  if (!s) return {};
+  const names = entriesOf(s.id).map((e) => e.name);
+  const list = names.length ? ` В разделе: ${names.slice(0, 6).join(", ")}${names.length > 6 ? " и другие" : ""}.` : "";
+  return pageMeta({
+    title: `${s.name} — энциклопедия`,
+    description: `${s.name} вселенной люприков. ${s.lead}${list}`,
+    path: `/encyclopedia/${s.id}`,
+  });
 }
 
 export default async function SectionPage({ params }: Props) {

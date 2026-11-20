@@ -2,6 +2,9 @@ import Link from "next/link";
 import { SECTIONS, secStyle } from "@/data/encyclopedia";
 import { SiteHeader } from "@/components/site/SiteNav";
 import { BookIcon, MapIcon, SectionIcon } from "@/components/site/Icons";
+import { pageMeta } from "@/lib/meta";
+
+export const metadata = pageMeta({ path: "/" });
 
 export default function Home() {
   return (

@@ -1,16 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { OG_IMAGE, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, SITE_TITLE, pageMeta, siteUrl } from "@/lib/meta";
 import "./globals.css";
 import "./site.css";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
-
+/* Общие метаданные сайта. У страниц свои заголовки и описания — через pageMeta (src/lib/meta.ts) */
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: { default: "Люприки", template: "%s — Люприки" },
-  description: "Мир люприков: интерактивная карта и энциклопедия персонажей, мест, растений, существ и вещичек.",
-  openGraph: { images: ["/og.jpg"] },
+  ...pageMeta({ path: "/" }),
+  metadataBase: new URL(siteUrl()),
+  title: { default: SITE_TITLE, template: `%s — ${SITE_NAME}` },
+  applicationName: SITE_NAME,
+  keywords: SITE_KEYWORDS,
+  category: "entertainment",
+  robots: { index: true, follow: true },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
@@ -18,6 +20,18 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: "#fbf8f1",
+};
+
+/** Описание сайта для поисковиков (schema.org) */
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  alternateName: "Вселенная люприков",
+  url: siteUrl(),
+  description: SITE_DESCRIPTION,
+  inLanguage: "ru",
+  image: new URL(OG_IMAGE.url, siteUrl()).toString(),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Neucha&family=Nunito:wght@400;600;700&display=swap"
         />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body>{children}</body>
     </html>

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Explorer from "@/components/Explorer";
-import { allOpenableIds, getNode, idFromSlug, slugFor } from "@/lib/world";
+import { allOpenableIds, getNode, idFromSlug, slugFor, urlFor } from "@/lib/world";
+import { entryForPlace } from "@/data/encyclopedia";
+import { firstSentence, pageMeta } from "@/lib/meta";
 
 type Props = { params: Promise<{ slug?: string[] }> };
 
@@ -15,8 +17,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const id = idFromSlug(slug);
   const node = id ? getNode(id) : undefined;
-  if (!node || node.id === "world") return { title: "Карта мира" };
-  return { title: node.name, description: node.desc };
+  if (!node) return {};
+  if (node.id === "world")
+    return pageMeta({
+      title: "Карта мира",
+      description: "Интерактивная карта мира люприков: приближайте места, заглядывайте в дома и говорите с жителями.",
+      path: urlFor("world"),
+    });
+  const entry = entryForPlace(node.id);
+  const about = node.desc || (entry ? firstSentence(entry.text) : "");
+  return pageMeta({
+    title: node.name,
+    description: `${node.name} на карте мира люприков.${about ? " " + about : ""}`,
+    path: urlFor(node.id),
+  });
 }
 
 export default async function Page({ params }: Props) {

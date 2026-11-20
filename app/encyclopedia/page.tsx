@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { SECTIONS, entriesOf, plural, secStyle } from "@/data/encyclopedia";
 import { SectionIcon } from "@/components/site/Icons";
+import { pageMeta } from "@/lib/meta";
+
+export const metadata = pageMeta({
+  title: "Энциклопедия",
+  description: "Энциклопедия вселенной люприков: персонажи, локации, флора, фауна и вещички — с описаниями и картинками.",
+  path: "/encyclopedia",
+});
 
 export default function EncyclopediaHome() {
   return (
