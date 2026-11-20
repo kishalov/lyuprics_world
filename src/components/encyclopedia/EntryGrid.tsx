@@ -2,39 +2,39 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { Entry } from "@/data/encyclopedia";
+import type { Entry, IconKey } from "@/data/encyclopedia-schema";
 import { SectionIcon } from "@/components/site/Icons";
 
 export type EntryView = Entry & { mapUrl?: string };
 
 const paragraphs = (t: string) => t.split(/\n\s*\n/).filter(Boolean);
 
-/** Картинка карточки или заглушка: первая буква и значок раздела */
-function Picture({ e, big }: { e: EntryView; big?: boolean }) {
+/** РљР°СЂС‚РёРЅРєР° РєР°СЂС‚РѕС‡РєРё РёР»Рё Р·Р°РіР»СѓС€РєР°: РїРµСЂРІР°СЏ Р±СѓРєРІР° Рё Р·РЅР°С‡РѕРє СЂР°Р·РґРµР»Р° */
+export function Picture({ e, icon, big }: { e: Pick<Entry, "name" | "image">; icon: IconKey; big?: boolean }) {
   if (e.image) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img className="pic" src={e.image} alt={e.name} loading={big ? "eager" : "lazy"} draggable={false} />;
   }
   return (
     <div className="pic stub" aria-hidden="true">
-      <span className="stub-letter">{e.name[0]}</span>
+      <span className="stub-letter">{e.name[0] || "?"}</span>
       <span className="stub-ico">
-        <SectionIcon id={e.section} />
+        <SectionIcon icon={icon} />
       </span>
     </div>
   );
 }
 
 /**
- * Сетка карточек. По нажатию карточка открывается крупно (полный текст, факт, ссылка на карту).
- * Открытая карточка записывается в адрес (#id), поэтому ссылкой на неё можно поделиться.
+ * РЎРµС‚РєР° РєР°СЂС‚РѕС‡РµРє. РџРѕ РЅР°Р¶Р°С‚РёСЋ РєР°СЂС‚РѕС‡РєР° РѕС‚РєСЂС‹РІР°РµС‚СЃСЏ РєСЂСѓРїРЅРѕ (РїРѕР»РЅС‹Р№ С‚РµРєСЃС‚, С„Р°РєС‚, СЃСЃС‹Р»РєР° РЅР° РєР°СЂС‚Сѓ).
+ * РћС‚РєСЂС‹С‚Р°СЏ РєР°СЂС‚РѕС‡РєР° Р·Р°РїРёСЃС‹РІР°РµС‚СЃСЏ РІ Р°РґСЂРµСЃ (#id), РїРѕСЌС‚РѕРјСѓ СЃСЃС‹Р»РєРѕР№ РЅР° РЅРµС‘ РјРѕР¶РЅРѕ РїРѕРґРµР»РёС‚СЊСЃСЏ.
  */
-export default function EntryGrid({ entries, sectionName }: { entries: EntryView[]; sectionName: string }) {
+export default function EntryGrid({ entries, sectionName, sectionIcon }: { entries: EntryView[]; sectionName: string; sectionIcon: IconKey }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const dlg = useRef<HTMLDialogElement>(null);
   const open = entries.find((e) => e.id === openId) || null;
 
-  // #id в адресе → открыть карточку (при загрузке и при смене хэша)
+  // #id РІ Р°РґСЂРµСЃРµ в†’ РѕС‚РєСЂС‹С‚СЊ РєР°СЂС‚РѕС‡РєСѓ (РїСЂРё Р·Р°РіСЂСѓР·РєРµ Рё РїСЂРё СЃРјРµРЅРµ С…СЌС€Р°)
   useEffect(() => {
     const sync = () => {
       const id = decodeURIComponent(window.location.hash.slice(1));
@@ -74,12 +74,12 @@ export default function EntryGrid({ entries, sectionName }: { entries: EntryView
                 show(e.id);
               }}
             >
-              <Picture e={e} />
+              <Picture e={e} icon={sectionIcon} />
               <div className="card-body">
                 {e.kind && <span className="kind">{e.kind}</span>}
                 <h3>{e.name}</h3>
                 <p>{paragraphs(e.text)[0]}</p>
-                {e.mapUrl && <span className="on-map">есть на карте</span>}
+                {e.mapUrl && <span className="on-map">РµСЃС‚СЊ РЅР° РєР°СЂС‚Рµ</span>}
               </div>
             </a>
           </li>
@@ -92,31 +92,31 @@ export default function EntryGrid({ entries, sectionName }: { entries: EntryView
         aria-label={open?.name}
         onClose={onClosed}
         onClick={(ev) => {
-          // нажатие мимо окна закрывает его
+          // РЅР°Р¶Р°С‚РёРµ РјРёРјРѕ РѕРєРЅР° Р·Р°РєСЂС‹РІР°РµС‚ РµРіРѕ
           if (ev.target === ev.currentTarget) ev.currentTarget.close();
         }}
       >
         {open && (
           <article key={open.id}>
-            <button className="x" aria-label="Закрыть" onClick={() => dlg.current?.close()}>
-              ×
+            <button className="x" aria-label="Р—Р°РєСЂС‹С‚СЊ" onClick={() => dlg.current?.close()}>
+              Г—
             </button>
-            <Picture e={open} big />
+            <Picture e={open} icon={sectionIcon} big />
             <div className="entry-body">
-              <span className="kind">{open.kind ? `${sectionName} · ${open.kind}` : sectionName}</span>
+              <span className="kind">{open.kind ? `${sectionName} В· ${open.kind}` : sectionName}</span>
               <h2>{open.name}</h2>
               {paragraphs(open.text).map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
               {open.fact && (
                 <aside className="fact">
-                  <b>Интересный факт</b>
+                  <b>РРЅС‚РµСЂРµСЃРЅС‹Р№ С„Р°РєС‚</b>
                   {open.fact}
                 </aside>
               )}
               {open.mapUrl && (
                 <Link className="to-map" href={open.mapUrl}>
-                  Показать на карте →
+                  РџРѕРєР°Р·Р°С‚СЊ РЅР° РєР°СЂС‚Рµ в†’
                 </Link>
               )}
             </div>

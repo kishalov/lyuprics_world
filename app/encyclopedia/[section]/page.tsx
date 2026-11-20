@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { SECTIONS, entriesOf, getSection } from "@/data/encyclopedia";
+import { SECTIONS, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
 import { getNode, urlFor } from "@/lib/world";
 import { SectionIcon } from "@/components/site/Icons";
 import EntryGrid, { type EntryView } from "@/components/encyclopedia/EntryGrid";
@@ -29,7 +29,7 @@ export default async function SectionPage({ params }: Props) {
   }));
 
   return (
-    <div data-sec={section.id}>
+    <div style={secStyle(section)}>
       <nav className="wiki-crumbs" aria-label="Путь">
         <Link href="/encyclopedia">Энциклопедия</Link>
         <i>›</i>
@@ -38,7 +38,7 @@ export default async function SectionPage({ params }: Props) {
 
       <div className="page-title with-ico">
         <span className="section-ico">
-          <SectionIcon id={section.id} />
+          <SectionIcon icon={section.icon} />
         </span>
         <div>
           <h1>{section.name}</h1>
@@ -51,21 +51,21 @@ export default async function SectionPage({ params }: Props) {
           <Link
             key={s.id}
             href={`/encyclopedia/${s.id}`}
-            data-sec={s.id}
+            style={secStyle(s)}
             className={s.id === section.id ? "on" : undefined}
             aria-current={s.id === section.id ? "page" : undefined}
           >
-            <SectionIcon id={s.id} />
+            <SectionIcon icon={s.icon} />
             {s.name}
           </Link>
         ))}
       </nav>
 
       {entries.length ? (
-        <EntryGrid entries={entries} sectionName={section.name} />
+        <EntryGrid entries={entries} sectionName={section.name} sectionIcon={section.icon} />
       ) : (
         <div className="empty">
-          <SectionIcon id={section.id} />
+          <SectionIcon icon={section.icon} />
           <p>Здесь пока пусто. Скоро в разделе «{section.name}» появятся первые карточки.</p>
         </div>
       )}

@@ -1,12 +1,7 @@
 /* Стили сайта вокруг карты: шапка, главная, энциклопедия.
    Тот же язык, что у карты: плотный контур, плоские цвета, «наклеечные» тени. */
 
-/* ---------- цвета разделов энциклопедии ---------- */
-[data-sec="characters"] { --sec: #f19a86; --sec-bg: #fbe1da; }
-[data-sec="locations"] { --sec: #c0c47c; --sec-bg: #ecedd2; }
-[data-sec="flora"] { --sec: #8fc27a; --sec-bg: #dcefd2; }
-[data-sec="fauna"] { --sec: #f6d55c; --sec-bg: #fbf0c4; }
-[data-sec="items"] { --sec: #b49ad8; --sec-bg: #e9e0f5; }
+/* цвета разделов (--sec, --sec-bg) задаются в данных: PALETTE в src/data/encyclopedia.ts */
 
 /* ---------- иконки ---------- */
 .ic { width: 1em; height: 1em; flex: none; color: var(--ink); overflow: visible; }

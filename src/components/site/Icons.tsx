@@ -1,8 +1,8 @@
-/* Иконки в стиле карты: плотный контур, плоская заливка.
-   Цвет заливки берётся из CSS: .ic-fill — цвет раздела (--sec), .ic-hi — жёлтый,
-   .ic-berry — коралловый, .ic-paper — белый. */
+/* РРєРѕРЅРєРё РІ СЃС‚РёР»Рµ РєР°СЂС‚С‹: РїР»РѕС‚РЅС‹Р№ РєРѕРЅС‚СѓСЂ, РїР»РѕСЃРєР°СЏ Р·Р°Р»РёРІРєР°.
+   Р¦РІРµС‚ Р·Р°Р»РёРІРєРё Р±РµСЂС‘С‚СЃСЏ РёР· CSS: .ic-fill вЂ” С†РІРµС‚ СЂР°Р·РґРµР»Р° (--sec), .ic-hi вЂ” Р¶С‘Р»С‚С‹Р№,
+   .ic-berry вЂ” РєРѕСЂР°Р»Р»РѕРІС‹Р№, .ic-paper вЂ” Р±РµР»С‹Р№. */
 
-import type { SectionId } from "@/data/encyclopedia";
+import type { IconKey } from "@/data/encyclopedia-schema";
 
 const S = { fill: "none", stroke: "currentColor", strokeWidth: 2.6, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
@@ -24,9 +24,10 @@ export function BookIcon() {
   );
 }
 
-export function SectionIcon({ id }: { id: SectionId }) {
-  switch (id) {
-    case "characters":
+/** Р—РЅР°С‡РѕРє СЂР°Р·РґРµР»Р°. РќРѕРІС‹Р№ Р·РЅР°С‡РѕРє: РґРѕР±Р°РІСЊС‚Рµ case Р·РґРµСЃСЊ Рё РЅР°Р·РІР°РЅРёРµ РІ ICONS (src/data/encyclopedia.ts) */
+export function SectionIcon({ icon }: { icon: IconKey }) {
+  switch (icon) {
+    case "face":
       return (
         <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
           <path className="ic-fill" {...S} d="M13 18 L10 6 L21 12 M35 18 L38 6 L27 12" />
@@ -36,7 +37,7 @@ export function SectionIcon({ id }: { id: SectionId }) {
           <path {...S} d="M19 32 Q24 36.5 29 32" />
         </svg>
       );
-    case "locations":
+    case "mountain":
       return (
         <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
           <path className="ic-fill" {...S} d="M4 41 L18 17 L25 28 L31 20 L44 41 Z" />
@@ -44,7 +45,7 @@ export function SectionIcon({ id }: { id: SectionId }) {
           <path {...S} d="M13 33 L17 29 M33 30 L36 34" />
         </svg>
       );
-    case "flora":
+    case "berries":
       return (
         <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
           <path {...S} d="M24 24 Q22 16 14 12" />
@@ -54,7 +55,7 @@ export function SectionIcon({ id }: { id: SectionId }) {
           <circle className="ic-berry" {...S} cx="23" cy="41" r="5" />
         </svg>
       );
-    case "fauna":
+    case "bug":
       return (
         <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
           <ellipse className="ic-paper" {...S} cx="14" cy="19" rx="10" ry="6" transform="rotate(-28 14 19)" />
@@ -65,7 +66,7 @@ export function SectionIcon({ id }: { id: SectionId }) {
           <path {...S} d="M17.5 28 H30.5 M18 34 H30" />
         </svg>
       );
-    case "items":
+    case "flask":
       return (
         <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
           <path className="ic-paper" {...S} d="M19 9 H29 V18 L38 34 Q41 43 32 43 H16 Q7 43 10 34 L19 18 Z" />
@@ -73,6 +74,42 @@ export function SectionIcon({ id }: { id: SectionId }) {
           <rect className="ic-hi" {...S} x="17" y="4" width="14" height="6" rx="2" />
           <circle cx="21" cy="25" r="1.8" fill="currentColor" />
           <circle cx="27" cy="21" r="1.4" fill="currentColor" />
+        </svg>
+      );
+    case "book":
+      return (
+        <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
+          <path className="ic-fill" {...S} d="M6 11 Q15 6 24 12 Q33 6 42 11 V39 Q33 34 24 40 Q15 34 6 39 Z" />
+          <path {...S} d="M24 12 V40 M11 17 Q15 15.5 19 17.5 M11 23 Q15 21.5 19 23.5 M29 17.5 Q33 15.5 37 17" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
+          <path className="ic-fill" {...S} d="M24 5 L29.5 17.5 L43 18.8 L32.8 27.8 L35.8 41 L24 34 L12.2 41 L15.2 27.8 L5 18.8 L18.5 17.5 Z" />
+          <circle cx="20" cy="24" r="1.8" fill="currentColor" />
+          <circle cx="28" cy="24" r="1.8" fill="currentColor" />
+        </svg>
+      );
+    case "house":
+      return (
+        <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
+          <path className="ic-paper" {...S} d="M10 22 V42 H38 V22" />
+          <path className="ic-fill" {...S} d="M5 24 L24 7 L43 24 Z" />
+          <path className="ic-hi" {...S} d="M20 42 V31 Q24 27 28 31 V42" />
+        </svg>
+      );
+    case "gem":
+      return (
+        <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
+          <path className="ic-fill" {...S} d="M14 8 H34 L43 19 L24 42 L5 19 Z" />
+          <path {...S} d="M5 19 H43 M18 19 L24 42 L30 19 M14 8 L18 19 M34 8 L30 19 M24 8 L18 19 M24 8 L30 19" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">
+          <circle className="ic-fill" {...S} cx="24" cy="24" r="16" />
         </svg>
       );
   }

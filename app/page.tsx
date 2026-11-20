@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SECTIONS } from "@/data/encyclopedia";
+import { SECTIONS, secStyle } from "@/data/encyclopedia";
 import { SiteHeader } from "@/components/site/SiteNav";
 import { BookIcon, MapIcon, SectionIcon } from "@/components/site/Icons";
 
@@ -39,8 +39,8 @@ export default function Home() {
             <ul className="door-sections">
               {SECTIONS.map((s) => (
                 <li key={s.id}>
-                  <Link href={`/encyclopedia/${s.id}`} data-sec={s.id}>
-                    <SectionIcon id={s.id} />
+                  <Link href={`/encyclopedia/${s.id}`} style={secStyle(s)}>
+                    <SectionIcon icon={s.icon} />
                     {s.name}
                   </Link>
                 </li>

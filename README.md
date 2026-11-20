@@ -24,25 +24,48 @@ npm run dev
 
 ## Энциклопедия
 
-Все карточки лежат в `src/data/encyclopedia.ts`. Чтобы добавить карточку, допишите объект в `ENTRIES`:
+### Редактор
 
-```ts
+Разделы и карточки удобнее всего править в редакторе: **`/editor`** (на сайте на него нет ссылок — он только для вас).
+
+- Слева — разделы: название, строка на плашке, значок, цвет, порядок (стрелки ▲▼).
+- Справа — карточки раздела. Нажмите на карточку, чтобы открыть её: название, подпись, описание, интересный факт, картинка (кнопкой или перетаскиванием файла; большие картинки уменьшатся сами), раздел, место на карте.
+- Адреса (`pitychiy-les`) у новых разделов и карточек собираются из названия сами.
+- Правки копятся, пока вы не нажмёте **«Сохранить»** (или Ctrl+S). Закрыть вкладку с несохранёнными правками браузер не даст без вопроса.
+
+**Где работает:**
+
+- **На своём компьютере** — `npm run dev`, затем http://localhost:3000/editor. Пароль не нужен (если не задан `EDITOR_PASSWORD`). Правки сразу пишутся в `src/data/encyclopedia.json` и `public/encyclopedia/`, и сайт в dev-режиме их сразу показывает. Потом закоммитьте и запушьте, как обычно.
+- **На опубликованном сайте** — каждое сохранение превращается в коммит в репозиторий на GitHub, Vercel его видит и через минуту-две пересобирает сайт. Для этого в Vercel → Settings → Environment Variables задайте:
+  - `EDITOR_PASSWORD` — пароль для входа в редактор;
+  - `GITHUB_TOKEN` — токен GitHub: [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new) → Repository access: *Only select repositories* → `lyuprics_world`; Permissions → *Contents: Read and write*;
+  - `GITHUB_REPO` = `kishalov/lyuprics_world` и, если ветка не `main`, `GITHUB_BRANCH`.
+
+  Без этих переменных редактор на сайте выключен. После сохранения на сайте не забудьте сделать `git pull` у себя, прежде чем править локально.
+
+### Вручную
+
+Данные лежат в `src/data/encyclopedia.json`, формат описан в `src/data/encyclopedia-schema.ts`. Карточка выглядит так:
+
+```json
 {
-  id: "vkusnika",            // латиница через дефис, уникальный
-  section: "flora",          // characters | locations | flora | fauna | items
-  name: "Вкусника",
-  kind: "ягода",             // подпись над названием, можно не писать
-  text: "Первый абзац.\n\nВторой абзац.",
-  fact: "Интересный факт",   // можно не писать
-  image: "/encyclopedia/vkusnika.webp", // можно не писать — будет заглушка
-  map: "holmy",              // id места из world.ts, можно не писать
+  "id": "vkusnika",
+  "section": "flora",
+  "name": "Вкусника",
+  "kind": "ягода",
+  "text": "Первый абзац.\n\nВторой абзац.",
+  "fact": "Интересный факт",
+  "image": "/encyclopedia/vkusnika.webp",
+  "map": "holmy"
 }
 ```
+
+`id` — латиница через дефис, уникальный; `section` — id раздела; `kind`, `fact`, `image` (без картинки будет заглушка) и `map` (id места из `world.ts`) можно не писать.
 
 - **Картинка:** положите файл в `public/encyclopedia/` и укажите путь в `image`. Лучше всего подходят картинки 4:3 (например, 1200×900) в WebP или JPG.
 - **Связь с картой:** если указать `map`, в карточке появится «Показать на карте», а на карте у этого места — «Читать в энциклопедии».
 - **Ссылка на карточку:** `/encyclopedia/flora#vkusnika` откроет страницу раздела сразу с этой карточкой.
-- **Новый раздел:** добавьте его в `SECTIONS`, тип `SectionId`, значок в `src/components/site/Icons.tsx` и цвета в `app/site.css` (блок «цвета разделов»).
+- **Новый значок или цвет для разделов:** значок — `case` в `src/components/site/Icons.tsx` и название в `ICONS`, цвет — в `PALETTE` (оба в `src/data/encyclopedia-schema.ts`).
 
 ## Как выложить в интернет
 
@@ -57,7 +80,8 @@ npm run dev
 ```
 art-src/map/           ← исходные PNG-слои карты из Procreate (имя файла = id слоя)
 scripts/build-map.mjs  ← готовит слои для сайта: npm run map
-src/data/encyclopedia.ts ← энциклопедия: разделы и карточки
+src/data/encyclopedia.json ← энциклопедия: разделы и карточки (правится в /editor)
+src/components/editor/ ← редактор энциклопедии
 src/data/world.ts      ← структура мира: места, уровни, координаты точек
 src/data/npcs.ts       ← жители: имя, характер, что знают, внешность заглушки
 src/art/scenes.ts      ← рисунки-заглушки сцен (деревня Кружье)

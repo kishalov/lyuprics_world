@@ -63,6 +63,13 @@ export function allPlaceNames(): string[] {
     .map((n) => n.name);
 }
 
+/** Места карты, к которым можно привязать карточку энциклопедии: «Питучий лес › Зеркальный пруд» */
+export function mapPlaces(): { id: string; name: string }[] {
+  return Object.values(byId)
+    .filter((n) => n.id !== "world" && (n.type === "map" || n.type === "leaf" || n.type === "scene"))
+    .map((n) => ({ id: n.id, name: pathTo(n.id).slice(1).map((p) => p.name).join(" › ") }));
+}
+
 export function levelName(n: WorldNode): string {
   if (n.level) return n.level;
   return ({ leaf: "Место", scene: "Локация", interior: "Дом", locked: "Дом" } as Record<string, string>)[n.type] ||

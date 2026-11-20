@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SECTIONS, entriesOf, plural } from "@/data/encyclopedia";
+import { SECTIONS, entriesOf, plural, secStyle } from "@/data/encyclopedia";
 import { SectionIcon } from "@/components/site/Icons";
 
 export default function EncyclopediaHome() {
@@ -15,9 +15,9 @@ export default function EncyclopediaHome() {
           const n = entriesOf(s.id).length;
           return (
             <li key={s.id}>
-              <Link href={`/encyclopedia/${s.id}`} className="section-tile" data-sec={s.id}>
+              <Link href={`/encyclopedia/${s.id}`} className="section-tile" style={secStyle(s)}>
                 <span className="section-ico">
-                  <SectionIcon id={s.id} />
+                  <SectionIcon icon={s.icon} />
                 </span>
                 <span className="section-text">
                   <b>{s.name}</b>
