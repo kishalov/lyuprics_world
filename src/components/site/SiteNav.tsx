@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookIcon, MapIcon } from "./Icons";
+import { BookIcon, Logo, MapIcon } from "./Icons";
 
 export type SiteSection = "map" | "encyclopedia";
 
@@ -7,7 +7,7 @@ export type SiteSection = "map" | "encyclopedia";
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="Люприки — на главную">
-      <span className="brand-dot" aria-hidden="true" />
+      <Logo />
       Люприки
     </Link>
   );

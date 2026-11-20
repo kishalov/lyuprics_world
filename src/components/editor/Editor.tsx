@@ -20,7 +20,7 @@ import {
   type IconKey,
   type Section,
 } from "@/data/encyclopedia-schema";
-import { SectionIcon } from "@/components/site/Icons";
+import { Logo, SectionIcon } from "@/components/site/Icons";
 
 export type Place = { id: string; name: string };
 type Mode = "local" | "github" | "off";
@@ -389,7 +389,7 @@ export default function Editor({ places }: { places: Place[] }) {
     <div className="ed">
       <header className="ed-head">
         <a className="brand" href="/encyclopedia" title="К энциклопедии">
-          <span className="brand-dot" aria-hidden="true" />
+          <Logo />
           Редактор
         </a>
         <span className={"ed-mode " + mode} title={mode === "github" ? "Сохранение коммитом в репозиторий" : "Сохранение в файлы проекта"}>

@@ -6,6 +6,30 @@ import type { IconKey } from "@/data/encyclopedia-schema";
 
 const S = { fill: "none", stroke: "currentColor", strokeWidth: 2.6, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
+/** Логотип: два листа. Тот же рисунок — в app/icon.svg (фавикон) */
+export function Logo() {
+  return (
+    <svg className="logo" viewBox="0 0 256 200" fill="none" aria-hidden="true">
+      <path
+        d="M146 138.236C110.8 181.436 44.5 205.734 3 192.234C49.5 152.735 29 109.736 44.5 63.735C60 17.734 99.5 -8.26364 146 7.73636C192.5 23.7364 190 84.2363 146 138.236Z"
+        fill="#80AB3F"
+        stroke="currentColor"
+        strokeWidth="6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M157 154.234C195.5 111.734 202.5 72.2344 195.5 41.2344C221 62.7344 224 80.7344 224 122.234C224 155.434 243 182.401 252.5 191.734C190.9 208.534 161.667 172.568 157 154.234Z"
+        fill="#2D8D5F"
+        stroke="currentColor"
+        strokeWidth="6"
+        strokeLinejoin="round"
+      />
+      <path d="M3 192.234C132 157.734 91 38.7344 146 7.73633" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
+      <path d="M252.499 191.734C215 186.234 195.5 163.234 187.833 108.234" stroke="currentColor" strokeWidth="6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function MapIcon() {
   return (
     <svg className="ic" viewBox="0 0 48 48" aria-hidden="true">

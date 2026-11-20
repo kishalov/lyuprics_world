@@ -12,8 +12,8 @@
 
 /* ---------- название сайта и переключатель разделов ---------- */
 .brand { flex: none; display: inline-flex; align-items: center; gap: 9px; font-family: var(--hand); font-size: 27px; line-height: 1; color: var(--ink); text-decoration: none; white-space: nowrap; }
-.brand-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); border: 2.5px solid var(--ink); box-shadow: 0 2px 0 var(--ink); transition: background .2s, transform .3s cubic-bezier(.3, 1.6, .5, 1); }
-.brand:hover .brand-dot { background: var(--accent2); transform: scale(1.2); }
+.brand .logo { flex: none; width: 38px; height: auto; color: var(--ink); overflow: visible; transform-origin: 50% 90%; transition: transform .35s cubic-bezier(.3, 1.6, .5, 1); }
+.brand:hover .logo { transform: rotate(-8deg) scale(1.08); }
 
 .site-nav { flex: none; display: flex; gap: 8px; margin-left: auto; }
 .site-nav a { display: inline-flex; align-items: center; gap: 7px; padding: 5px 14px 6px 9px; border: var(--line) solid var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); text-decoration: none;
