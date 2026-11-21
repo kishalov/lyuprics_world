@@ -10,16 +10,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEFAULT_WHERE_LABEL,
   ICONS,
+  LINK_KINDS,
   PALETTE,
+  buildRefs,
   firstParagraph,
-  parseWhere,
+  linkMarkup,
   linkProblems,
+  mentions,
+  parseWhere,
   plural,
+  refKey,
   renameLinks,
   secStyle,
   slugify,
+  splitRef,
   unlink,
   validateData,
+  type LinkKind,
+  type RefKey,
   type Refs,
   type ColorKey,
   type EncyclopediaData,
@@ -30,7 +38,8 @@ import {
 import { Logo, SectionIcon } from "@/components/site/Icons";
 import RichText from "@/components/encyclopedia/RichText";
 
-export type Place = { id: string; name: string };
+/** Место карты: name — с путём («Питучий лес › Зеркальный пруд»), short — само место */
+export type Place = { id: string; name: string; short: string; url: string };
 type Mode = "local" | "github" | "off";
 type Status = "loading" | "off" | "login" | "ready" | "error";
 /** Картинки, выбранные в этой сессии: base64 — ещё не отправлена, url — для показа */
@@ -56,6 +65,24 @@ function swap<T>(arr: T[], i: number, j: number): T[] {
   [a[i], a[j]] = [a[j], a[i]];
   return a;
 }
+
+/** Цель ссылок переехала на новый адрес (to) или исчезла (to = null): чиним описания и «где» */
+function retarget(entries: Entry[], from: RefKey, to: RefKey | null, name: string): Entry[] {
+  return entries.map((x) => {
+    let next = x;
+    if (mentions(x.text, from)) next = { ...next, text: to ? renameLinks(x.text, from, to) : unlink(x.text, from, name) };
+    if (next.where?.includes(from)) {
+      const where = to ? next.where.map((w) => (w === from ? to : w)) : next.where.filter((w) => w !== from);
+      next = { ...next, where };
+      if (!where.length) delete next.where;
+    }
+    return next;
+  });
+}
+
+/** Сколько карточек ссылаются на цель (в описании или в «где») */
+const referrers = (entries: Entry[], key: RefKey, except?: string) =>
+  entries.filter((x) => x.id !== except && (mentions(x.text, key) || x.where?.includes(key)));
 
 /** Уменьшает картинку до 1600 px по большей стороне и пережимает в WebP (или JPEG, если браузер не умеет WebP) */
 async function shrinkImage(file: File): Promise<{ blob: Blob; ext: string }> {
@@ -114,11 +141,12 @@ export default function Editor({ places }: { places: Place[] }) {
   const [problems, setProblems] = useState<string[]>([]);
 
   const dirty = JSON.stringify(data) !== savedJson;
-  /** для ссылок в описаниях: название каждой карточки */
-  const refs: Refs = Object.fromEntries(
-    data.entries.map((e) => [e.id, { name: e.name || "без названия", url: `/encyclopedia/${e.section}#${e.id}` }]),
+  /** цели ссылок в описаниях: карточки, разделы, места карты, страницы */
+  const refs: Refs = buildRefs(
+    data,
+    places.map((p) => ({ id: p.id, name: p.short, url: p.url, hint: p.name })),
   );
-  const nameOf = (id: string) => refs[id]?.name;
+  const nameOf = (key: string) => refs[key]?.name;
   const sec = data.sections.find((s) => s.id === secId);
   const secEntries = data.entries.filter((e) => e.section === secId);
   const editing = editId ? data.entries.find((e) => e.id === editId) : undefined;
@@ -169,16 +197,7 @@ export default function Editor({ places }: { places: Place[] }) {
 
   const save = async () => {
     if (saving) return;
-    const placeIds = new Set(places.map((p) => p.id));
-    const errs = [
-      ...validateData(data),
-      ...linkProblems(data),
-      ...data.entries.flatMap((e) =>
-        (e.where || [])
-          .filter((w) => w.startsWith("map:") && !placeIds.has(w.slice(4)))
-          .map((w) => `Карточка «${e.name || "без названия"}»: в поле «где» указано место, которого нет на карте (${w.slice(4)})`),
-      ),
-    ];
+    const errs = [...validateData(data), ...linkProblems(data, new Set(places.map((p) => p.id)))];
     setProblems(errs);
     if (errs.length) return say("err", "Не сохранено: поправьте отмеченное вверху.");
     const used = new Set(data.entries.map((e) => fileOf(e.image)).filter(Boolean));
@@ -226,9 +245,17 @@ export default function Editor({ places }: { places: Place[] }) {
   /* ---------- разделы ---------- */
 
   const updSection = (id: string, patch: Partial<Section>) => {
+    const renamed = patch.id && patch.id !== id ? patch.id : null;
     setData((d) => ({
       sections: d.sections.map((s) => (s.id === id ? { ...s, ...patch } : s)),
-      entries: patch.id && patch.id !== id ? d.entries.map((e) => (e.section === id ? { ...e, section: patch.id! } : e)) : d.entries,
+      entries: renamed
+        ? retarget(
+            d.entries.map((e) => (e.section === id ? { ...e, section: renamed } : e)),
+            refKey("section", id),
+            refKey("section", renamed),
+            "",
+          )
+        : d.entries,
     }));
     if (patch.id && patch.id !== id) {
       setSecId(patch.id);
@@ -273,7 +300,18 @@ export default function Editor({ places }: { places: Place[] }) {
     const n = data.entries.filter((e) => e.section === s.id).length;
     const q = n ? `Удалить раздел «${s.name || "без названия"}» и ${n} ${plural(n, ["карточку", "карточки", "карточек"])} в нём?` : `Удалить раздел «${s.name || "без названия"}»?`;
     if (!confirm(q)) return;
-    setData((d) => ({ sections: d.sections.filter((x) => x.id !== s.id), entries: d.entries.filter((e) => e.section !== s.id) }));
+    setData((d) => {
+      const gone = d.entries.filter((e) => e.section === s.id);
+      // ссылки на раздел и на его карточки становятся обычным текстом
+      let entries = retarget(
+        d.entries.filter((e) => e.section !== s.id),
+        refKey("section", s.id),
+        null,
+        s.name,
+      );
+      for (const g of gone) entries = retarget(entries, refKey("card", g.id), null, g.name);
+      return { sections: d.sections.filter((x) => x.id !== s.id), entries };
+    });
     const rest = data.sections.filter((x) => x.id !== s.id);
     setSecId(rest[0]?.id || "");
   };
@@ -284,17 +322,11 @@ export default function Editor({ places }: { places: Place[] }) {
 
   const updEntry = (id: string, patch: Partial<Entry>) => {
     const renamed = patch.id && patch.id !== id ? patch.id : null;
-    setData((d) => ({
-      ...d,
-      entries: d.entries.map((e) => {
-        let next = e.id === id ? { ...e, ...patch } : e;
-        if (!renamed) return next;
-        // адрес карточки поменялся — ссылки на неё в описаниях и в «где» следуют за ним
-        if (next.text.includes(`[[${id}`)) next = { ...next, text: renameLinks(next.text, id, renamed) };
-        if (next.where?.includes("card:" + id)) next = { ...next, where: next.where.map((w) => (w === "card:" + id ? "card:" + renamed : w)) };
-        return next;
-      }),
-    }));
+    setData((d) => {
+      const entries = d.entries.map((e) => (e.id === id ? { ...e, ...patch } : e));
+      // адрес карточки поменялся — ссылки на неё в описаниях и в «где» следуют за ним
+      return { ...d, entries: renamed ? retarget(entries, refKey("card", id), refKey("card", renamed), "") : entries };
+    });
     if (patch.id && patch.id !== id) {
       if (editId === id) setEditId(patch.id);
       setFresh((f) => {
@@ -338,25 +370,12 @@ export default function Editor({ places }: { places: Place[] }) {
   };
 
   const deleteEntry = (e: Entry) => {
-    const ref = "card:" + e.id;
-    const linked = data.entries.filter((x) => x.id !== e.id && (x.text.includes(`[[${e.id}`) || x.where?.includes(ref)));
+    const ref = refKey("card", e.id);
+    const linked = referrers(data.entries, ref, e.id);
     const also = linked.length ? `\n\nНа неё ссылаются: ${linked.map((x) => `«${x.name}»`).join(", ")}. Ссылки станут обычным текстом.` : "";
     if (!confirm(`Удалить карточку «${e.name || "без названия"}»?${also}`)) return;
     setEditId(null);
-    setData((d) => ({
-      ...d,
-      entries: d.entries
-        .filter((x) => x.id !== e.id)
-        .map((x) => {
-          let next = x.text.includes(`[[${e.id}`) ? { ...x, text: unlink(x.text, e.id, e.name) } : x;
-          if (next.where?.includes(ref)) {
-            const where = next.where.filter((w) => w !== ref);
-            next = { ...next, where };
-            if (!where.length) delete next.where;
-          }
-          return next;
-        }),
-    }));
+    setData((d) => ({ ...d, entries: retarget(d.entries.filter((x) => x.id !== e.id), ref, null, e.name) }));
   };
 
   /** Перенести карточку в другой раздел — она встаёт последней */
@@ -690,7 +709,15 @@ export default function Editor({ places }: { places: Place[] }) {
           entry={editing}
           entries={data.entries}
           refs={refs}
-          onOpen={(id) => setEditId(id)}
+          onOpen={(ref) => {
+            // переход по ссылке из «Как будет выглядеть»
+            const { kind, id } = splitRef(ref);
+            if (kind === "card") setEditId(id);
+            else if (kind === "section") {
+              setEditId(null);
+              setSecId(id);
+            } else if (refs[ref]) window.open(refs[ref].url, "_blank");
+          }}
           sections={data.sections}
           places={places}
           placeTaken={(placeId) => data.entries.find((x) => x.map === placeId && x.id !== editing.id)?.name}
@@ -767,7 +794,7 @@ function EntryDialog(props: {
   entry: Entry;
   entries: Entry[];
   refs: Refs;
-  onOpen: (id: string) => void;
+  onOpen: (ref: RefKey) => void;
   sections: Section[];
   places: Place[];
   placeTaken: (placeId: string) => string | undefined;
@@ -851,8 +878,6 @@ function EntryDialog(props: {
           </label>
           <TextField
             entry={e}
-            entries={props.entries}
-            sections={sections}
             refs={props.refs}
             onChange={(text) => props.onPatch({ text })}
             onOpen={props.onOpen}
@@ -918,18 +943,17 @@ function EntryDialog(props: {
 /* ---------- описание: ссылки на карточки и примечания ---------- */
 function TextField(props: {
   entry: Entry;
-  entries: Entry[];
-  sections: Section[];
   refs: Refs;
   onChange: (text: string) => void;
-  onOpen: (id: string) => void;
+  onOpen: (ref: RefKey) => void;
 }) {
-  const { entry: e } = props;
+  const { entry: e, refs } = props;
   const ta = useRef<HTMLTextAreaElement>(null);
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [picker, setPicker] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
+  const [kind, setKind] = useState<LinkKind | "all">("all");
 
   /** Заменить выделение в описании; caret — куда поставить курсор (от начала вставки) */
   const replaceSelection = (make: (sel: string, before: string, after: string) => { text: string; caret?: number }) => {
@@ -950,19 +974,19 @@ function TextField(props: {
     const el = ta.current;
     setSelected(el ? e.text.slice(el.selectionStart, el.selectionEnd).trim() : "");
     setQuery("");
+    setKind("all");
     setTab("edit");
     setPicker(true);
   };
 
-  const insertLink = (target: Entry) => {
+  const insertLink = (key: RefKey) => {
     setPicker(false);
     replaceSelection((sel) => {
       const words = sel.trim();
       // выделенные слова становятся текстом ссылки; пробелы по краям выделения сохраняем
       const lead = sel.match(/^\s*/)![0];
       const tail = sel.match(/\s*$/)![0];
-      const link = words ? `[[${target.id}|${words}]]` : `[[${target.id}]]`;
-      return { text: words ? lead + link + tail : link };
+      return { text: words ? lead + linkMarkup(key, words) + tail : linkMarkup(key) };
     });
   };
 
@@ -983,11 +1007,16 @@ function TextField(props: {
     });
   };
 
+  // всё, на что можно сослаться, по группам: разделы, карточки, места карты, страницы
   const q = query.trim().toLowerCase();
-  const secName = (id: string) => props.sections.find((s) => s.id === id)?.name || "";
-  const found = props.entries
-    .filter((x) => x.id !== e.id && (!q || x.name.toLowerCase().includes(q)))
-    .sort((x, y) => x.name.localeCompare(y.name, "ru"));
+  const self = refKey("card", e.id);
+  const all = Object.entries(refs)
+    .filter(([key, r]) => key !== self && (kind === "all" || r.kind === kind) && (!q || r.name.toLowerCase().includes(q) || (r.hint || "").toLowerCase().includes(q)))
+    .sort(([, x], [, y]) => x.name.localeCompare(y.name, "ru"));
+  const groups = (Object.keys(LINK_KINDS) as LinkKind[])
+    .map((k) => ({ kind: k, title: LINK_KINDS[k], items: all.filter(([, r]) => r.kind === k) }))
+    .filter((g) => g.items.length);
+  const first = groups[0]?.items[0]?.[0];
 
   return (
     <div className="ed-field">
@@ -1000,7 +1029,12 @@ function TextField(props: {
           Как будет выглядеть
         </button>
         <span className="ed-spacer" />
-        <button type="button" className="ed-tool" onClick={openPicker} title="Ссылка на другую карточку. Выделите слова в тексте (например, имя друга) и нажмите — они станут ссылкой">
+        <button
+          type="button"
+          className="ed-tool"
+          onClick={openPicker}
+          title="Ссылка на карточку, раздел, место на карте или страницу сайта. Выделите слова в тексте и нажмите — они станут ссылкой"
+        >
           <span className="ed-tool-link">а</span> Ссылка
         </button>
         <button type="button" className="ed-tool" onClick={insertNote} title="Абзац в жёлтой рамке. Если что-то выделено — оно станет примечанием">
@@ -1014,16 +1048,16 @@ function TextField(props: {
             <input
               autoFocus
               value={query}
-              placeholder="Найти карточку по названию"
+              placeholder="Найти: карточку, раздел, место на карте…"
               onChange={(ev) => setQuery(ev.target.value)}
               onKeyDown={(ev) => {
                 if (ev.key === "Escape") {
                   ev.stopPropagation();
                   setPicker(false);
                 }
-                if (ev.key === "Enter" && found[0]) {
+                if (ev.key === "Enter" && first) {
                   ev.preventDefault();
-                  insertLink(found[0]);
+                  insertLink(first);
                 }
               }}
             />
@@ -1031,25 +1065,39 @@ function TextField(props: {
               Отмена
             </button>
           </div>
+          <div className="ed-kinds">
+            {(["all", ...Object.keys(LINK_KINDS)] as (LinkKind | "all")[]).map((k) => (
+              <button key={k} type="button" className={"ed-tab" + (kind === k ? " on" : "")} onClick={() => setKind(k)}>
+                {k === "all" ? "Всё" : LINK_KINDS[k]}
+              </button>
+            ))}
+          </div>
           <small>
             {selected ? (
               <>
                 Ссылкой станут слова «<b>{selected}</b>».
               </>
             ) : (
-              "Слова не выделены — в текст встанет название карточки. Чтобы ссылкой стали ваши слова (например, «Шушиня»), сначала выделите их в тексте."
+              "Слова не выделены — в текст встанет название. Чтобы ссылкой стали ваши слова (например, «Шушиня»), сначала выделите их в тексте."
             )}
           </small>
           <ul>
-            {found.slice(0, 40).map((x) => (
-              <li key={x.id}>
-                <button type="button" onClick={() => insertLink(x)}>
-                  <b>{x.name || "Без названия"}</b>
-                  <i>{secName(x.section)}</i>
-                </button>
+            {groups.map((g) => (
+              <li key={g.kind} className="ed-group">
+                <div className="ed-group-title">{g.title}</div>
+                <ul>
+                  {g.items.slice(0, 40).map(([key, r]) => (
+                    <li key={key}>
+                      <button type="button" onClick={() => insertLink(key)}>
+                        <b>{r.name}</b>
+                        {r.hint && <i>{r.hint}</i>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
-            {found.length === 0 && <li className="ed-hint">Ничего не нашлось</li>}
+            {groups.length === 0 && <li className="ed-hint">Ничего не нашлось</li>}
           </ul>
         </div>
       )}
@@ -1061,10 +1109,10 @@ function TextField(props: {
           {e.text.trim() ? (
             <RichText
               text={e.text}
-              refs={props.refs}
-              onLink={(id, ev) => {
+              refs={refs}
+              onLink={(ref, ev) => {
                 ev.preventDefault();
-                props.onOpen(id);
+                props.onOpen(ref);
               }}
             />
           ) : (
@@ -1073,8 +1121,8 @@ function TextField(props: {
         </div>
       )}
       <small>
-        Пустая строка — новый абзац. Ссылка выглядит как <code>[[адрес|слова]]</code>, примечание — абзац, который начинается с <code>&gt;</code>;
-        «<code>&gt; Заголовок: текст</code>» — примечание с заголовком. В «Как будет выглядеть» по ссылке можно перейти к той карточке.
+        Пустая строка — новый абзац. Ссылка — кнопкой «Ссылка» (на карточку, раздел, место на карте или страницу), примечание — абзац, который начинается
+        с <code>&gt;</code>; «<code>&gt; Заголовок: текст</code>» — примечание с заголовком. В «Как будет выглядеть» по ссылкам можно переходить.
       </small>
     </div>
   );

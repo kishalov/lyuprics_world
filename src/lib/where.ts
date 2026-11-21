@@ -9,8 +9,15 @@
    такой нет — на карту.
    ===================================================================== */
 
-import { ENTRIES, SECTIONS, entryForPlace, entryUrl, getEntry, parseWhere, type Entry } from "@/data/encyclopedia";
-import { getNode, urlFor } from "@/lib/world";
+import { ENTRIES, SECTIONS, buildRefs, entryForPlace, entryUrl, getEntry, parseWhere, type Entry, type Refs } from "@/data/encyclopedia";
+import { getNode, mapPlaces, urlFor } from "@/lib/world";
+
+/** Все цели ссылок в описаниях: карточки, разделы, страницы и места карты */
+export const siteRefs = (): Refs =>
+  buildRefs(
+    { sections: SECTIONS, entries: ENTRIES },
+    mapPlaces().map((p) => ({ id: p.id, name: p.short, url: p.url, hint: p.name })),
+  );
 
 export type LinkRef = { id: string; name: string; url: string };
 export type HereGroup = { section: string; items: LinkRef[] };

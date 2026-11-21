@@ -160,14 +160,62 @@ export function normalizeData(input: unknown): EncyclopediaData {
   return { sections, entries };
 }
 
-/* ---------- разметка описания: ссылки и примечания ---------- */
+/* ---------- ссылки: на что угодно в энциклопедии и на сайте ---------- */
 
-const LINK_RE = /\[\[([a-z0-9-]+)(?:\|([^\]\n]*))?\]\]/g;
+/**
+ * На что можно сослаться из описания. Новый тип (например, «события»):
+ * добавьте его сюда и в buildRefs ниже — редактор и сайт подхватят сами.
+ */
+export const LINK_KINDS = {
+  card: "Карточки",
+  section: "Разделы энциклопедии",
+  map: "Места на карте",
+  page: "Страницы сайта",
+} as const;
+export type LinkKind = keyof typeof LINK_KINDS;
 
-/** Куда ведут ссылки [[id]]: название и адрес карточки */
-export type Refs = Record<string, { name: string; url: string }>;
+/** Страницы сайта, на которые можно сослаться: [[page:encyclopedia|энциклопедию]] */
+export const PAGES: Record<string, { name: string; url: string }> = {
+  home: { name: "Главная", url: "/" },
+  encyclopedia: { name: "Энциклопедия", url: "/encyclopedia" },
+  map: { name: "Карта мира", url: "/map" },
+};
 
-export type Inline ={ t: "text"; s: string } | { t: "link"; id: string; label?: string };
+/** Ключ цели ссылки: "card:vkusnika", "section:flora", "map:kruzhye", "page:home" */
+export type RefKey = string;
+export const refKey = (kind: string, id: string): RefKey => `${kind}:${id}`;
+export const splitRef = (key: RefKey) => {
+  const i = key.indexOf(":");
+  return { kind: key.slice(0, i), id: key.slice(i + 1) };
+};
+
+/** Куда ведут ссылки: название, адрес и тип каждой цели */
+export type Refs = Record<RefKey, { name: string; url: string; kind: LinkKind; hint?: string }>;
+
+/** Все цели ссылок. places — места карты (их знает только сайт, не этот файл) */
+export function buildRefs(d: EncyclopediaData, places: { id: string; name: string; url: string; hint?: string }[] = []): Refs {
+  const refs: Refs = {};
+  for (const s of d.sections) refs[refKey("section", s.id)] = { kind: "section", name: s.name || "Без названия", url: `/encyclopedia/${s.id}` };
+  for (const e of d.entries) {
+    const sec = d.sections.find((s) => s.id === e.section);
+    refs[refKey("card", e.id)] = { kind: "card", name: e.name || "Без названия", url: `/encyclopedia/${e.section}#${e.id}`, hint: sec?.name };
+  }
+  for (const p of places) refs[refKey("map", p.id)] = { kind: "map", name: p.name, url: p.url, hint: p.hint };
+  for (const [id, pg] of Object.entries(PAGES)) refs[refKey("page", id)] = { kind: "page", ...pg };
+  return refs;
+}
+
+// [[id]] и [[id|слова]] — карточка; [[тип:id]] и [[тип:id|слова]] — всё остальное
+const LINK_RE = /\[\[(?:([a-z]+):)?([a-z0-9-]+)(?:\|([^\]\n]*))?\]\]/g;
+const keyOf = (kind: string | undefined, id: string) => refKey(kind || "card", id);
+
+/** Как записать ссылку в тексте; у карточек — коротко, без «card:» */
+export function linkMarkup(key: RefKey, label?: string): string {
+  const { kind, id } = splitRef(key);
+  return `[[${kind === "card" ? id : key}${label !== undefined && label !== "" ? "|" + label : ""}]]`;
+}
+
+export type Inline = { t: "text"; s: string } | { t: "link"; ref: RefKey; label?: string };
 export type Block = { t: "p"; text: string } | { t: "note"; title?: string; text: string };
 
 /** Текст абзаца → куски текста и ссылки */
@@ -176,7 +224,7 @@ export function parseInline(s: string): Inline[] {
   let last = 0;
   for (const m of s.matchAll(LINK_RE)) {
     if (m.index! > last) out.push({ t: "text", s: s.slice(last, m.index) });
-    out.push({ t: "link", id: m[1], label: m[2]?.trim() || undefined });
+    out.push({ t: "link", ref: keyOf(m[1], m[2]), label: m[3]?.trim() || undefined });
     last = m.index! + m[0].length;
   }
   if (last < s.length) out.push({ t: "text", s: s.slice(last) });
@@ -201,11 +249,12 @@ export function parseBlocks(text: string): Block[] {
     });
 }
 
-type NameOf = (id: string) => string | undefined;
+/** Название цели ссылки по ключу */
+type NameOf = (key: RefKey) => string | undefined;
 
 const blockPlain = (b: Block, nameOf: NameOf) => {
   const inner = parseInline(b.text)
-    .map((x) => (x.t === "text" ? x.s : x.label || nameOf(x.id) || ""))
+    .map((x) => (x.t === "text" ? x.s : x.label || nameOf(x.ref) || splitRef(x.ref).id))
     .join("");
   return b.t === "note" && b.title ? `${b.title}: ${inner}` : inner;
 };
@@ -223,29 +272,42 @@ export function firstParagraph(text: string, nameOf: NameOf): string {
   return b ? blockPlain(b, nameOf) : "";
 }
 
-/** Ссылки на карточки, которых нет */
-export function linkProblems(d: EncyclopediaData): string[] {
-  const ids = new Set(d.entries.map((e) => e.id));
+/**
+ * Ссылки и «где», которые ведут в никуда.
+ * places — id мест карты; если не переданы, ссылки на карту не проверяются.
+ */
+export function linkProblems(d: EncyclopediaData, places?: Set<string>): string[] {
+  const cards = new Set(d.entries.map((e) => e.id));
+  const sections = new Set(d.sections.map((s) => s.id));
+  const exists = (kind: string, id: string) =>
+    kind === "card" ? cards.has(id) : kind === "section" ? sections.has(id) : kind === "page" ? id in PAGES : kind === "map" ? !places || places.has(id) : false;
   const out: string[] = [];
   for (const e of d.entries) {
-    for (const m of e.text.matchAll(LINK_RE))
-      if (!ids.has(m[1])) out.push(`Карточка «${e.name || "без названия"}»: ссылка на несуществующую карточку «${m[2] || m[1]}» (${m[1]})`);
+    const who = `Карточка «${e.name || "без названия"}»`;
+    for (const m of e.text.matchAll(LINK_RE)) {
+      const kind = m[1] || "card";
+      if (!(kind in LINK_KINDS)) out.push(`${who}: непонятная ссылка «${m[0]}»`);
+      else if (!exists(kind, m[2])) out.push(`${who}: ссылка «${m[3] || m[2]}» ведёт в никуда (${kind}:${m[2]})`);
+    }
     for (const w of e.where || []) {
       const { kind, id } = parseWhere(w);
-      if (kind === "card" && !ids.has(id)) out.push(`Карточка «${e.name || "без названия"}»: в поле «где» указана несуществующая карточка (${id})`);
-      if (kind === "card" && id === e.id) out.push(`Карточка «${e.name || "без названия"}»: в поле «где» указана она сама`);
+      if (!exists(kind, id)) out.push(`${who}: в поле «где» указано то, чего нет (${w})`);
+      if (kind === "card" && id === e.id) out.push(`${who}: в поле «где» указана она сама`);
     }
   }
   return out;
 }
 
-/** Поменялся адрес карточки — чиним ссылки на неё */
-export const renameLinks = (text: string, from: string, to: string) =>
-  text.replace(LINK_RE, (all, id: string, label?: string) => (id === from ? `[[${to}${label !== undefined ? "|" + label : ""}]]` : all));
+/** Поменялся адрес цели (карточки, раздела…) — чиним ссылки на неё */
+export const renameLinks = (text: string, from: RefKey, to: RefKey) =>
+  text.replace(LINK_RE, (all, kind: string | undefined, id: string, label?: string) => (keyOf(kind, id) === from ? linkMarkup(to, label) : all));
 
-/** Карточку удалили — ссылки на неё превращаются в обычный текст */
-export const unlink = (text: string, id: string, name: string) =>
-  text.replace(LINK_RE, (all, target: string, label?: string) => (target === id ? label?.trim() || name : all));
+/** Цель удалили — ссылки на неё превращаются в обычный текст */
+export const unlink = (text: string, key: RefKey, name: string) =>
+  text.replace(LINK_RE, (all, kind: string | undefined, id: string, label?: string) => (keyOf(kind, id) === key ? label?.trim() || name : all));
+
+/** Есть ли в тексте ссылка на эту цель */
+export const mentions = (text: string, key: RefKey) => [...text.matchAll(LINK_RE)].some((m) => keyOf(m[1], m[2]) === key);
 
 /** Как файл выглядит на диске */
 export const serializeData = (d: EncyclopediaData) => JSON.stringify(d, null, 2) + "\n";

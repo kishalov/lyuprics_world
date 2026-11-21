@@ -63,11 +63,11 @@ export function allPlaceNames(): string[] {
     .map((n) => n.name);
 }
 
-/** Места карты, к которым можно привязать карточку энциклопедии: «Питучий лес › Зеркальный пруд» */
-export function mapPlaces(): { id: string; name: string }[] {
+/** Места карты для энциклопедии: name — с путём («Питучий лес › Зеркальный пруд»), short — само место */
+export function mapPlaces(): { id: string; name: string; short: string; url: string }[] {
   return Object.values(byId)
     .filter((n) => n.id !== "world" && (n.type === "map" || n.type === "leaf" || n.type === "scene"))
-    .map((n) => ({ id: n.id, name: pathTo(n.id).slice(1).map((p) => p.name).join(" › ") }));
+    .map((n) => ({ id: n.id, name: pathTo(n.id).slice(1).map((p) => p.name).join(" › "), short: n.name, url: urlFor(n.id) }));
 }
 
 export function levelName(n: WorldNode): string {

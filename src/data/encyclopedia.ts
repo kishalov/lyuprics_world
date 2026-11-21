@@ -8,6 +8,7 @@
 
 import data from "./encyclopedia.json";
 import {
+  buildRefs,
   firstParagraph,
   normalizeData,
   plainText,
@@ -36,11 +37,13 @@ export const entryUrl = (e: Entry) => `/encyclopedia/${e.section}#${e.id}`;
 /** Карточка энциклопедии, привязанная к месту на карте */
 export const entryForPlace = (placeId: string) => ENTRIES.find((e) => e.map === placeId);
 
-const nameOf = (id: string) => getEntry(id)?.name;
+/** Цели ссылок без мест карты (места добавляет siteRefs в src/lib/where.ts) */
+const REFS = buildRefs(DATA);
+const nameOf = (key: string) => REFS[key]?.name;
 /** Описание карточки без разметки */
 export const entryPlain = (e: Entry) => plainText(e.text, nameOf);
 /** Первый абзац без разметки */
 export const entryLead = (e: Entry) => firstParagraph(e.text, nameOf);
 
-/** Куда ведут ссылки [[id]] в описаниях: название и адрес каждой карточки */
-export const allRefs = (): Refs => Object.fromEntries(ENTRIES.map((e) => [e.id, { name: e.name, url: entryUrl(e) }]));
+/** Куда ведут ссылки в описаниях (без мест карты) */
+export const encyclopediaRefs = (): Refs => REFS;

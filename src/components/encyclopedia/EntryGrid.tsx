@@ -54,7 +54,7 @@ export default function EntryGrid({
   const [openId, setOpenId] = useState<string | null>(null);
   const dlg = useRef<HTMLDialogElement>(null);
   const open = entries.find((e) => e.id === openId) || null;
-  const nameOf = (id: string) => refs[id]?.name;
+  const nameOf = (key: string) => refs[key]?.name;
 
   // #id в адресе → открыть карточку (при загрузке и при смене хэша)
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function EntryGrid({
                   {chips(open.whereRefs)}
                 </div>
               )}
-              <RichText text={open.text} refs={refs} onLink={(id, ev) => stayHere(id)(ev)} />
+              <RichText text={open.text} refs={refs} onLink={(ref, ev) => ref.startsWith("card:") && stayHere(ref.slice(5))(ev)} />
               {open.here.length > 0 && (
                 <div className="here">
                   <b>Здесь</b>

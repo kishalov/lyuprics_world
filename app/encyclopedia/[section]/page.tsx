@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { DEFAULT_WHERE_LABEL, SECTIONS, allRefs, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
+import { DEFAULT_WHERE_LABEL, SECTIONS, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
 import { getNode, urlFor } from "@/lib/world";
-import { whereOf, whoIsAt } from "@/lib/where";
+import { siteRefs, whereOf, whoIsAt } from "@/lib/where";
 import { SectionIcon } from "@/components/site/Icons";
 import { pageMeta } from "@/lib/meta";
 import EntryGrid, { type EntryView } from "@/components/encyclopedia/EntryGrid";
@@ -77,7 +77,7 @@ export default async function SectionPage({ params }: Props) {
           entries={entries}
           sectionName={section.name}
           sectionIcon={section.icon}
-          refs={allRefs()}
+          refs={siteRefs()}
           whereLabel={section.whereLabel || DEFAULT_WHERE_LABEL}
         />
       ) : (

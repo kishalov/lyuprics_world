@@ -142,6 +142,10 @@
 .ed-picker li button:hover, .ed-picker li button:focus-visible { background: var(--accent2); outline: none; }
 .ed-picker li b { font-weight: 600; }
 .ed-picker li i { font-style: normal; font-size: 12.5px; color: var(--ink2); margin-left: auto; }
+.ed-kinds { display: flex; flex-wrap: wrap; gap: 4px; }
+.ed-picker .ed-group { display: block; }
+.ed-group-title { margin: 6px 10px 2px; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink2); }
+.ed-picker .ed-group ul { max-height: none; overflow: visible; }
 .ed-preview { min-height: 200px; max-height: 420px; overflow: auto; padding: 4px 14px; background: #fff; border: 2px dashed rgba(28, 25, 23, .35); border-radius: 12px; font-size: 15px; line-height: 1.6; }
 .ed-preview p { margin: 10px 0; }
 
