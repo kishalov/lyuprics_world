@@ -147,6 +147,22 @@ dialog.entry::backdrop { background: rgba(251, 248, 241, .72); backdrop-filter: 
 .note { margin: 14px 0; padding: 12px 16px; background: #fdf3c8; border: 2px solid var(--ink); border-radius: 14px; font-size: 15px; line-height: 1.5; white-space: pre-line; }
 .note b { display: block; margin-bottom: 2px; font-family: var(--hand); font-weight: 400; font-size: 20px; }
 .entry-body > :last-child { margin-bottom: 0; }
+/* «Где живёт: …» и «Здесь: …» — ссылки-плашки на места и карточки */
+.where { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 14.5px; }
+.where > b { font-weight: 700; color: var(--ink2); margin-right: 2px; }
+.where > i { font-style: normal; color: var(--ink2); margin-right: 2px; }
+.chip { display: inline-block; padding: 2px 11px 3px; font-family: var(--hand); font-size: 17px; line-height: 1.2; color: var(--ink); text-decoration: none;
+  background: var(--sec-bg, #f1ebdc); border: 2px solid var(--ink); border-radius: 999px; transition: background .15s, transform .15s; }
+.chip:hover { background: var(--accent2); transform: translateY(-1px); }
+.here { margin: 16px 0 4px; padding-top: 12px; border-top: 2px dashed rgba(28, 25, 23, .2); }
+.here > b { display: block; margin-bottom: 6px; font-family: var(--hand); font-weight: 400; font-size: 20px; }
+.here .where { margin-bottom: 6px; }
+#card .here { margin-top: 10px; padding-top: 8px; }
+#card .here > b { font-size: 18px; margin-bottom: 4px; }
+#card .chip { font-size: 15px; background: #f1ebdc; }
+.card-where { font-size: 12.5px; font-weight: 700; color: var(--ink2); }
+.card-where::before { content: "⌖ "; }
+
 /* ссылка на другую карточку */
 .xref { color: var(--ink); text-decoration: none; border-bottom: 2px dashed var(--accent); transition: background .15s; border-radius: 3px; }
 .xref:hover { background: var(--accent2); border-bottom-style: solid; }

@@ -4,10 +4,13 @@
    Этот файл не тянет сами данные, поэтому его спокойно импортирует редактор.
 
      раздел:   id, name, lead (строка на плашке), forms (1 / 2 / 5: «персонаж,
-               персонажа, персонажей»), icon (ключ из ICONS), color (ключ из PALETTE)
+               персонажа, персонажей»), icon (ключ из ICONS), color (ключ из PALETTE),
+               whereLabel (как подписать поле where у его карточек: «Где живёт»)
      карточка: id (латиница, уникальный), section (id раздела), name, kind (подпись
                над названием), text (см. ниже), image ("/encyclopedia/имя.webp"),
-               map (id места из world.ts). Старое поле fact само переезжает в text.
+               map (id места из world.ts — если карточка сама описывает это место),
+               where (где живёт / растёт / встречается: ["map:kruzhye", "card:pitychiy-les"]).
+               Старое поле fact само переезжает в text.
 
    Разметка описания (text):
      абзацы         — через пустую строку
@@ -58,7 +61,19 @@ export interface Section {
   forms: [string, string, string];
   icon: IconKey;
   color: ColorKey;
+  /** подпись поля «где» у карточек раздела: «Где живёт», «Где растёт» */
+  whereLabel?: string;
 }
+
+export const DEFAULT_WHERE_LABEL = "Где встречается";
+
+/** Ссылка на место: "map:id-места-на-карте" или "card:id-карточки" */
+export type WhereRef = string;
+export const WHERE_RE = /^(map|card):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const parseWhere = (w: WhereRef) => {
+  const i = w.indexOf(":");
+  return { kind: w.slice(0, i) as "map" | "card", id: w.slice(i + 1) };
+};
 
 export interface Entry {
   id: string;
@@ -68,7 +83,10 @@ export interface Entry {
   text: string;
   fact?: string;
   image?: string;
+  /** карточка сама описывает это место на карте */
   map?: string;
+  /** где живёт / растёт / встречается — места на карте и другие карточки */
+  where?: WhereRef[];
 }
 
 export interface EncyclopediaData {
@@ -114,7 +132,7 @@ export function normalizeData(input: unknown): EncyclopediaData {
   const sections: Section[] = o.sections.map((raw) => {
     const s = (raw || {}) as Record<string, unknown>;
     const f = Array.isArray(s.forms) ? s.forms : [];
-    return {
+    const out: Section = {
       id: str(s.id),
       name: str(s.name),
       lead: str(s.lead),
@@ -122,6 +140,9 @@ export function normalizeData(input: unknown): EncyclopediaData {
       icon: str(s.icon) as IconKey,
       color: str(s.color) as ColorKey,
     };
+    const whereLabel = opt(s.whereLabel);
+    if (whereLabel) out.whereLabel = whereLabel;
+    return out;
   });
   const entries: Entry[] = o.entries.map((raw) => {
     const e = (raw || {}) as Record<string, unknown>;
@@ -132,6 +153,8 @@ export function normalizeData(input: unknown): EncyclopediaData {
     if (kind) out.kind = kind;
     if (image) out.image = image;
     if (map) out.map = map;
+    const where = [...new Set((Array.isArray(e.where) ? e.where : []).map(str).filter((w) => WHERE_RE.test(w)))];
+    if (where.length) out.where = where;
     return out;
   });
   return { sections, entries };
@@ -204,9 +227,15 @@ export function firstParagraph(text: string, nameOf: NameOf): string {
 export function linkProblems(d: EncyclopediaData): string[] {
   const ids = new Set(d.entries.map((e) => e.id));
   const out: string[] = [];
-  for (const e of d.entries)
+  for (const e of d.entries) {
     for (const m of e.text.matchAll(LINK_RE))
       if (!ids.has(m[1])) out.push(`Карточка «${e.name || "без названия"}»: ссылка на несуществующую карточку «${m[2] || m[1]}» (${m[1]})`);
+    for (const w of e.where || []) {
+      const { kind, id } = parseWhere(w);
+      if (kind === "card" && !ids.has(id)) out.push(`Карточка «${e.name || "без названия"}»: в поле «где» указана несуществующая карточка (${id})`);
+      if (kind === "card" && id === e.id) out.push(`Карточка «${e.name || "без названия"}»: в поле «где» указана она сама`);
+    }
+  }
   return out;
 }
 

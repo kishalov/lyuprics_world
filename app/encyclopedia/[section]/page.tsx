@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { SECTIONS, allRefs, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
+import { DEFAULT_WHERE_LABEL, SECTIONS, allRefs, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
 import { getNode, urlFor } from "@/lib/world";
+import { whereOf, whoIsAt } from "@/lib/where";
 import { SectionIcon } from "@/components/site/Icons";
 import { pageMeta } from "@/lib/meta";
 import EntryGrid, { type EntryView } from "@/components/encyclopedia/EntryGrid";
@@ -30,10 +31,12 @@ export default async function SectionPage({ params }: Props) {
   const section = getSection((await params).section);
   if (!section) notFound();
 
-  // адрес на карте считаем здесь, чтобы не тащить карту мира в браузер
+  // ссылки на карту и места считаем здесь, чтобы не тащить карту мира в браузер
   const entries: EntryView[] = entriesOf(section.id).map((e) => ({
     ...e,
     mapUrl: e.map && getNode(e.map) ? urlFor(e.map) : undefined,
+    whereRefs: whereOf(e),
+    here: whoIsAt({ card: e }),
   }));
 
   return (
@@ -70,7 +73,13 @@ export default async function SectionPage({ params }: Props) {
       </nav>
 
       {entries.length ? (
-        <EntryGrid entries={entries} sectionName={section.name} sectionIcon={section.icon} refs={allRefs()} />
+        <EntryGrid
+          entries={entries}
+          sectionName={section.name}
+          sectionIcon={section.icon}
+          refs={allRefs()}
+          whereLabel={section.whereLabel || DEFAULT_WHERE_LABEL}
+        />
       ) : (
         <div className="empty">
           <SectionIcon icon={section.icon} />

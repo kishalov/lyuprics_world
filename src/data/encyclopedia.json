@@ -10,7 +10,8 @@
         "персонажей"
       ],
       "icon": "face",
-      "color": "coral"
+      "color": "coral",
+      "whereLabel": "Где живёт"
     },
     {
       "id": "locations",
@@ -22,7 +23,8 @@
         "локаций"
       ],
       "icon": "mountain",
-      "color": "olive"
+      "color": "olive",
+      "whereLabel": "Где находится"
     },
     {
       "id": "flora",
@@ -34,7 +36,8 @@
         "растений"
       ],
       "icon": "berries",
-      "color": "green"
+      "color": "green",
+      "whereLabel": "Где растёт"
     },
     {
       "id": "fauna",
@@ -46,7 +49,8 @@
         "существ"
       ],
       "icon": "bug",
-      "color": "yellow"
+      "color": "yellow",
+      "whereLabel": "Где водится"
     },
     {
       "id": "items",
@@ -58,7 +62,8 @@
         "вещичек"
       ],
       "icon": "gem",
-      "color": "lilac"
+      "color": "lilac",
+      "whereLabel": "Где найти"
     },
     {
       "id": "zelya",
@@ -70,7 +75,8 @@
         "карточек"
       ],
       "icon": "flask",
-      "color": "pink"
+      "color": "pink",
+      "whereLabel": "Где найти"
     }
   ],
   "entries": [
@@ -102,7 +108,10 @@
       "section": "flora",
       "name": "Вкусника",
       "text": "Съедобная ягода, широко распространена среди жителей Кружья. Используется для приготовления варенья, сока, настоек. Растёт преимущественно в окрестностях Питучего леса, но изредка встречается и в других частях континента.\n\nВкус сладкий, с лёгкой кислинкой, напоминает смесь малины и арбуза.",
-      "kind": "ягода"
+      "kind": "ягода",
+      "where": [
+        "card:pitychiy-les"
+      ]
     },
     {
       "id": "rosinki",

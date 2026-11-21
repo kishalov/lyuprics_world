@@ -6,7 +6,15 @@ import { firstParagraph, type Entry, type IconKey, type Refs } from "@/data/ency
 import { SectionIcon } from "@/components/site/Icons";
 import RichText from "./RichText";
 
-export type EntryView = Entry & { mapUrl?: string };
+import type { HereGroup, LinkRef } from "@/lib/where";
+
+export type EntryView = Entry & {
+  mapUrl?: string;
+  /** где живёт / растёт — ссылки */
+  whereRefs: LinkRef[];
+  /** кто здесь живёт / что растёт — по разделам */
+  here: HereGroup[];
+};
 
 /** Картинка карточки или заглушка: первая буква и значок раздела */
 export function Picture({ e, icon, big }: { e: Pick<Entry, "name" | "image">; icon: IconKey; big?: boolean }) {
@@ -33,12 +41,15 @@ export default function EntryGrid({
   sectionName,
   sectionIcon,
   refs,
+  whereLabel,
 }: {
   entries: EntryView[];
   sectionName: string;
   sectionIcon: IconKey;
   /** все карточки энциклопедии — для ссылок в описаниях */
   refs: Refs;
+  /** «Где живёт», «Где растёт»… */
+  whereLabel: string;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const dlg = useRef<HTMLDialogElement>(null);
@@ -68,6 +79,20 @@ export default function EntryGrid({
     setOpenId(id);
     dlg.current?.scrollTo({ top: 0 });
   };
+  /** Ссылка на карточку этого же раздела открывает её здесь же, остальные — обычный переход */
+  const stayHere = (id: string) => (ev: React.MouseEvent) => {
+    if (id && entries.some((e) => e.id === id)) {
+      ev.preventDefault();
+      show(id);
+    }
+  };
+  const chips = (list: LinkRef[]) =>
+    list.map((r) => (
+      <Link key={r.url} className="chip" href={r.url} onClick={stayHere(r.id)}>
+        {r.name}
+      </Link>
+    ));
+
   const onClosed = () => {
     setOpenId(null);
     if (window.location.hash) window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -90,6 +115,7 @@ export default function EntryGrid({
               <div className="card-body">
                 {e.kind && <span className="kind">{e.kind}</span>}
                 <h3>{e.name}</h3>
+                {e.whereRefs.length > 0 && <span className="card-where">{e.whereRefs.map((r) => r.name).join(", ")}</span>}
                 <p>{firstParagraph(e.text, nameOf)}</p>
                 {e.mapUrl && <span className="on-map">есть на карте</span>}
               </div>
@@ -117,17 +143,24 @@ export default function EntryGrid({
             <div className="entry-body">
               <span className="kind">{open.kind ? `${sectionName} · ${open.kind}` : sectionName}</span>
               <h2>{open.name}</h2>
-              <RichText
-                text={open.text}
-                refs={refs}
-                onLink={(id, ev) => {
-                  // карточка из этого же раздела — открываем её здесь же; из другого — переходим на его страницу
-                  if (entries.some((e) => e.id === id)) {
-                    ev.preventDefault();
-                    show(id);
-                  }
-                }}
-              />
+              {open.whereRefs.length > 0 && (
+                <div className="where">
+                  <b>{whereLabel}:</b>
+                  {chips(open.whereRefs)}
+                </div>
+              )}
+              <RichText text={open.text} refs={refs} onLink={(id, ev) => stayHere(id)(ev)} />
+              {open.here.length > 0 && (
+                <div className="here">
+                  <b>Здесь</b>
+                  {open.here.map((g) => (
+                    <div key={g.section} className="where">
+                      <i>{g.section}:</i>
+                      {chips(g.items)}
+                    </div>
+                  ))}
+                </div>
+              )}
               {open.mapUrl && (
                 <Link className="to-map" href={open.mapUrl}>
                   Показать на карте →

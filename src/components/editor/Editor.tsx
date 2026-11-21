@@ -8,9 +8,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  DEFAULT_WHERE_LABEL,
   ICONS,
   PALETTE,
   firstParagraph,
+  parseWhere,
   linkProblems,
   plural,
   renameLinks,
@@ -167,7 +169,16 @@ export default function Editor({ places }: { places: Place[] }) {
 
   const save = async () => {
     if (saving) return;
-    const errs = [...validateData(data), ...linkProblems(data)];
+    const placeIds = new Set(places.map((p) => p.id));
+    const errs = [
+      ...validateData(data),
+      ...linkProblems(data),
+      ...data.entries.flatMap((e) =>
+        (e.where || [])
+          .filter((w) => w.startsWith("map:") && !placeIds.has(w.slice(4)))
+          .map((w) => `Карточка «${e.name || "без названия"}»: в поле «где» указано место, которого нет на карте (${w.slice(4)})`),
+      ),
+    ];
     setProblems(errs);
     if (errs.length) return say("err", "Не сохранено: поправьте отмеченное вверху.");
     const used = new Set(data.entries.map((e) => fileOf(e.image)).filter(Boolean));
@@ -276,9 +287,12 @@ export default function Editor({ places }: { places: Place[] }) {
     setData((d) => ({
       ...d,
       entries: d.entries.map((e) => {
-        const next = e.id === id ? { ...e, ...patch } : e;
-        // адрес карточки поменялся — ссылки на неё в других описаниях следуют за ним
-        return renamed && next.text.includes(`[[${id}`) ? { ...next, text: renameLinks(next.text, id, renamed) } : next;
+        let next = e.id === id ? { ...e, ...patch } : e;
+        if (!renamed) return next;
+        // адрес карточки поменялся — ссылки на неё в описаниях и в «где» следуют за ним
+        if (next.text.includes(`[[${id}`)) next = { ...next, text: renameLinks(next.text, id, renamed) };
+        if (next.where?.includes("card:" + id)) next = { ...next, where: next.where.map((w) => (w === "card:" + id ? "card:" + renamed : w)) };
+        return next;
       }),
     }));
     if (patch.id && patch.id !== id) {
@@ -324,13 +338,24 @@ export default function Editor({ places }: { places: Place[] }) {
   };
 
   const deleteEntry = (e: Entry) => {
-    const linked = data.entries.filter((x) => x.id !== e.id && x.text.includes(`[[${e.id}`));
+    const ref = "card:" + e.id;
+    const linked = data.entries.filter((x) => x.id !== e.id && (x.text.includes(`[[${e.id}`) || x.where?.includes(ref)));
     const also = linked.length ? `\n\nНа неё ссылаются: ${linked.map((x) => `«${x.name}»`).join(", ")}. Ссылки станут обычным текстом.` : "";
     if (!confirm(`Удалить карточку «${e.name || "без названия"}»?${also}`)) return;
     setEditId(null);
     setData((d) => ({
       ...d,
-      entries: d.entries.filter((x) => x.id !== e.id).map((x) => (x.text.includes(`[[${e.id}`) ? { ...x, text: unlink(x.text, e.id, e.name) } : x)),
+      entries: d.entries
+        .filter((x) => x.id !== e.id)
+        .map((x) => {
+          let next = x.text.includes(`[[${e.id}`) ? { ...x, text: unlink(x.text, e.id, e.name) } : x;
+          if (next.where?.includes(ref)) {
+            const where = next.where.filter((w) => w !== ref);
+            next = { ...next, where };
+            if (!where.length) delete next.where;
+          }
+          return next;
+        }),
     }));
   };
 
@@ -520,6 +545,26 @@ export default function Editor({ places }: { places: Place[] }) {
                     </div>
                   </label>
                 </div>
+
+                <label className="ed-field">
+                  <span>Как подписать, где находится карточка этого раздела</span>
+                  <input
+                    value={sec.whereLabel || ""}
+                    placeholder={`${DEFAULT_WHERE_LABEL} — или, например, «Где живёт», «Где растёт»`}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setData((d) => ({
+                        ...d,
+                        sections: d.sections.map((s) => {
+                          if (s.id !== sec.id) return s;
+                          const next: Section = { ...s, whereLabel: v };
+                          if (!v) delete next.whereLabel;
+                          return next;
+                        }),
+                      }));
+                    }}
+                  />
+                </label>
 
                 <div className="ed-field">
                   <span>Как считать карточки</span>
@@ -812,6 +857,14 @@ function EntryDialog(props: {
             onChange={(text) => props.onPatch({ text })}
             onOpen={props.onOpen}
           />
+          <WhereField
+            entry={e}
+            entries={props.entries}
+            sections={sections}
+            places={places}
+            label={sec?.whereLabel || DEFAULT_WHERE_LABEL}
+            onChange={(where) => props.onPatch({ where })}
+          />
           <div className="ed-grid2">
             <label className="ed-field">
               <span>Раздел</span>
@@ -824,16 +877,20 @@ function EntryDialog(props: {
               </select>
             </label>
             <label className="ed-field">
-              <span>Место на карте</span>
+              <span>Эта карточка — место на карте</span>
               <select value={e.map || ""} onChange={(ev) => props.onField("map", ev.target.value)}>
-                <option value="">— не привязана —</option>
+                <option value="">— нет —</option>
                 {places.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
               </select>
-              {takenBy && <small className="ed-warn">К этому месту уже привязана карточка «{takenBy}» — на карте покажется только одна.</small>}
+              {takenBy ? (
+                <small className="ed-warn">Это место уже описывает карточка «{takenBy}» — на карте покажется только одна.</small>
+              ) : (
+                <small>Только если карточка сама описывает место с карты, как «Питучий лес». Где живёт или растёт — в поле выше.</small>
+              )}
             </label>
           </div>
           <label className="ed-field">
@@ -1018,6 +1075,111 @@ function TextField(props: {
       <small>
         Пустая строка — новый абзац. Ссылка выглядит как <code>[[адрес|слова]]</code>, примечание — абзац, который начинается с <code>&gt;</code>;
         «<code>&gt; Заголовок: текст</code>» — примечание с заголовком. В «Как будет выглядеть» по ссылке можно перейти к той карточке.
+      </small>
+    </div>
+  );
+}
+
+/* ---------- «где»: места на карте и другие карточки ---------- */
+function WhereField(props: {
+  entry: Entry;
+  entries: Entry[];
+  sections: Section[];
+  places: Place[];
+  label: string;
+  onChange: (where: string[] | undefined) => void;
+}) {
+  const { entry: e } = props;
+  const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState("");
+  const where = e.where || [];
+
+  const secName = (id: string) => props.sections.find((s) => s.id === id)?.name || "";
+  const describe = (w: string) => {
+    const { kind, id } = parseWhere(w);
+    if (kind === "map") return { name: props.places.find((p) => p.id === id)?.name.split(" › ").pop() || id, hint: "на карте" };
+    const c = props.entries.find((x) => x.id === id);
+    return { name: c?.name || id, hint: c ? secName(c.section) : "нет такой карточки" };
+  };
+
+  // что можно добавить: места карты и карточки (кроме самой себя и уже выбранного)
+  const q = query.trim().toLowerCase();
+  const options = [
+    ...props.places.map((p) => ({ ref: "map:" + p.id, name: p.name, hint: "на карте" })),
+    ...props.entries.filter((x) => x.id !== e.id).map((x) => ({ ref: "card:" + x.id, name: x.name || "Без названия", hint: secName(x.section) })),
+  ].filter((o) => !where.includes(o.ref) && (!q || o.name.toLowerCase().includes(q)));
+
+  const add = (ref: string) => {
+    props.onChange([...where, ref]);
+    setQuery("");
+    setPicking(false);
+  };
+  const remove = (ref: string) => {
+    const next = where.filter((w) => w !== ref);
+    props.onChange(next.length ? next : undefined);
+  };
+
+  return (
+    <div className="ed-field">
+      <span>{props.label}</span>
+      <div className="ed-where">
+        {where.map((w) => {
+          const d = describe(w);
+          return (
+            <span key={w} className="ed-where-chip" title={d.hint}>
+              {d.name}
+              <i>{d.hint}</i>
+              <button type="button" aria-label={`Убрать «${d.name}»`} onClick={() => remove(w)}>
+                ×
+              </button>
+            </span>
+          );
+        })}
+        {!picking && (
+          <button type="button" className="ed-tool" onClick={() => setPicking(true)}>
+            + Добавить место
+          </button>
+        )}
+      </div>
+      {picking && (
+        <div className="ed-picker">
+          <div className="ed-row">
+            <input
+              autoFocus
+              value={query}
+              placeholder="Место на карте или карточка, например «Кружье»"
+              onChange={(ev) => setQuery(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Escape") {
+                  ev.stopPropagation();
+                  setPicking(false);
+                }
+                if (ev.key === "Enter" && options[0]) {
+                  ev.preventDefault();
+                  add(options[0].ref);
+                }
+              }}
+            />
+            <button type="button" className="ed-btn ghost" onClick={() => setPicking(false)}>
+              Отмена
+            </button>
+          </div>
+          <ul>
+            {options.slice(0, 50).map((o) => (
+              <li key={o.ref}>
+                <button type="button" onClick={() => add(o.ref)}>
+                  <b>{o.name}</b>
+                  <i>{o.hint}</i>
+                </button>
+              </li>
+            ))}
+            {options.length === 0 && <li className="ed-hint">Ничего не нашлось</li>}
+          </ul>
+        </div>
+      )}
+      <small>
+        Можно выбрать несколько: места с карты или другие карточки (например, локацию, которой нет на карте). В карточке появится строка «{props.label}: …»,
+        а у самого места — «Здесь» со ссылкой сюда.
       </small>
     </div>
   );
