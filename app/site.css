@@ -137,10 +137,11 @@ dialog.entry { width: min(780px, calc(100% - 32px)); max-height: calc(100dvh - 4
 dialog.entry[open] { animation: popIn .35s cubic-bezier(.3, 1.5, .5, 1); }
 dialog.entry::backdrop { background: rgba(251, 248, 241, .72); backdrop-filter: blur(3px); }
 @keyframes popIn { from { opacity: 0; transform: translateY(16px) scale(.97); } }
-/* картинка сверху на всю ширину и целиком (без обрезки), текст — под ней */
+/* картинка сверху на всю ширину, текст — под ней. Высота — по пропорциям картинки;
+   слишком высокую подрезаем, сохраняя верх (там обычно головы) */
 .entry article { position: relative; display: block; }
 .entry .pic { width: 100%; border-bottom: var(--line) solid var(--ink); }
-.entry img.pic { height: auto; max-height: min(460px, 55vh); object-fit: contain; background: var(--sec-bg); }
+.entry img.pic { height: auto; max-height: min(520px, 62vh); object-fit: cover; object-position: 50% 20%; }
 .entry .pic.stub { height: 180px; }
 .entry .stub-letter { font-size: 110px; }
 .entry-body { padding: 24px 28px 28px; }
