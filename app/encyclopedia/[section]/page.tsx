@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { SECTIONS, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
+import { SECTIONS, allRefs, entriesOf, getSection, secStyle } from "@/data/encyclopedia";
 import { getNode, urlFor } from "@/lib/world";
 import { SectionIcon } from "@/components/site/Icons";
 import { pageMeta } from "@/lib/meta";
@@ -70,7 +70,7 @@ export default async function SectionPage({ params }: Props) {
       </nav>
 
       {entries.length ? (
-        <EntryGrid entries={entries} sectionName={section.name} sectionIcon={section.icon} />
+        <EntryGrid entries={entries} sectionName={section.name} sectionIcon={section.icon} refs={allRefs()} />
       ) : (
         <div className="empty">
           <SectionIcon icon={section.icon} />

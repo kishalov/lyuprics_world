@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { WorldNode } from "@/data/world";
-import { entryForPlace, entryUrl } from "@/data/encyclopedia";
+import { entryForPlace, entryLead, entryUrl } from "@/data/encyclopedia";
 import { levelName } from "@/lib/world";
 
 export type CardData = { node: WorldNode; fog?: boolean };
@@ -16,7 +16,7 @@ export default function InfoCard({ data, top }: { data: CardData | null; top?: b
   const fog = data.fog || n.type === "leaf";
   const entry = entryForPlace(n.id);
   // своего описания у места нет — берём первое предложение из энциклопедии
-  const fromWiki = entry?.text.split(/(?<=[.!?])\s/)[0];
+  const fromWiki = entry ? entryLead(entry).split(/(?<=[.!?])\s/)[0] : undefined;
   const desc = locked ? "Здесь пока никто не живёт. Добавьте жителя в npcs.ts и поменяйте тип дома на interior — дверь откроется." : n.desc || fromWiki;
   return (
     <aside id="card" key={n.id} className={top ? "top" : ""}>

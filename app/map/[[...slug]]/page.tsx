@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Explorer from "@/components/Explorer";
 import { allOpenableIds, getNode, idFromSlug, slugFor, urlFor } from "@/lib/world";
-import { entryForPlace } from "@/data/encyclopedia";
+import { entryForPlace, entryLead } from "@/data/encyclopedia";
 import { firstSentence, pageMeta } from "@/lib/meta";
 
 type Props = { params: Promise<{ slug?: string[] }> };
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       path: urlFor("world"),
     });
   const entry = entryForPlace(node.id);
-  const about = node.desc || (entry ? firstSentence(entry.text) : "");
+  const about = node.desc || (entry ? firstSentence(entryLead(entry)) : "");
   return pageMeta({
     title: node.name,
     description: `${node.name} на карте мира люприков.${about ? " " + about : ""}`,

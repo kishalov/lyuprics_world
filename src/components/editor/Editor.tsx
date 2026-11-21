@@ -10,10 +10,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ICONS,
   PALETTE,
+  firstParagraph,
+  linkProblems,
   plural,
+  renameLinks,
   secStyle,
   slugify,
+  unlink,
   validateData,
+  type Refs,
   type ColorKey,
   type EncyclopediaData,
   type Entry,
@@ -21,6 +26,7 @@ import {
   type Section,
 } from "@/data/encyclopedia-schema";
 import { Logo, SectionIcon } from "@/components/site/Icons";
+import RichText from "@/components/encyclopedia/RichText";
 
 export type Place = { id: string; name: string };
 type Mode = "local" | "github" | "off";
@@ -106,6 +112,11 @@ export default function Editor({ places }: { places: Place[] }) {
   const [problems, setProblems] = useState<string[]>([]);
 
   const dirty = JSON.stringify(data) !== savedJson;
+  /** для ссылок в описаниях: название каждой карточки */
+  const refs: Refs = Object.fromEntries(
+    data.entries.map((e) => [e.id, { name: e.name || "без названия", url: `/encyclopedia/${e.section}#${e.id}` }]),
+  );
+  const nameOf = (id: string) => refs[id]?.name;
   const sec = data.sections.find((s) => s.id === secId);
   const secEntries = data.entries.filter((e) => e.section === secId);
   const editing = editId ? data.entries.find((e) => e.id === editId) : undefined;
@@ -156,7 +167,7 @@ export default function Editor({ places }: { places: Place[] }) {
 
   const save = async () => {
     if (saving) return;
-    const errs = validateData(data);
+    const errs = [...validateData(data), ...linkProblems(data)];
     setProblems(errs);
     if (errs.length) return say("err", "Не сохранено: поправьте отмеченное вверху.");
     const used = new Set(data.entries.map((e) => fileOf(e.image)).filter(Boolean));
@@ -261,7 +272,15 @@ export default function Editor({ places }: { places: Place[] }) {
   /* ---------- карточки ---------- */
 
   const updEntry = (id: string, patch: Partial<Entry>) => {
-    setData((d) => ({ ...d, entries: d.entries.map((e) => (e.id === id ? { ...e, ...patch } : e)) }));
+    const renamed = patch.id && patch.id !== id ? patch.id : null;
+    setData((d) => ({
+      ...d,
+      entries: d.entries.map((e) => {
+        const next = e.id === id ? { ...e, ...patch } : e;
+        // адрес карточки поменялся — ссылки на неё в других описаниях следуют за ним
+        return renamed && next.text.includes(`[[${id}`) ? { ...next, text: renameLinks(next.text, id, renamed) } : next;
+      }),
+    }));
     if (patch.id && patch.id !== id) {
       if (editId === id) setEditId(patch.id);
       setFresh((f) => {
@@ -305,9 +324,14 @@ export default function Editor({ places }: { places: Place[] }) {
   };
 
   const deleteEntry = (e: Entry) => {
-    if (!confirm(`Удалить карточку «${e.name || "без названия"}»?`)) return;
+    const linked = data.entries.filter((x) => x.id !== e.id && x.text.includes(`[[${e.id}`));
+    const also = linked.length ? `\n\nНа неё ссылаются: ${linked.map((x) => `«${x.name}»`).join(", ")}. Ссылки станут обычным текстом.` : "";
+    if (!confirm(`Удалить карточку «${e.name || "без названия"}»?${also}`)) return;
     setEditId(null);
-    setData((d) => ({ ...d, entries: d.entries.filter((x) => x.id !== e.id) }));
+    setData((d) => ({
+      ...d,
+      entries: d.entries.filter((x) => x.id !== e.id).map((x) => (x.text.includes(`[[${e.id}`) ? { ...x, text: unlink(x.text, e.id, e.name) } : x)),
+    }));
   };
 
   /** Перенести карточку в другой раздел — она встаёт последней */
@@ -595,7 +619,7 @@ export default function Editor({ places }: { places: Place[] }) {
                         <span className="ed-mini-body">
                           {e.kind && <span className="kind">{e.kind}</span>}
                           <b>{e.name || "Без названия"}</b>
-                          <span className="ed-mini-text">{e.text || "Нет описания"}</span>
+                          <span className="ed-mini-text">{firstParagraph(e.text, nameOf) || "Нет описания"}</span>
                         </span>
                       </button>
                       <span className="ed-arrows row">
@@ -619,6 +643,9 @@ export default function Editor({ places }: { places: Place[] }) {
       {editing && (
         <EntryDialog
           entry={editing}
+          entries={data.entries}
+          refs={refs}
+          onOpen={(id) => setEditId(id)}
           sections={data.sections}
           places={places}
           placeTaken={(placeId) => data.entries.find((x) => x.map === placeId && x.id !== editing.id)?.name}
@@ -693,6 +720,9 @@ function Login({ onDone }: { onDone: () => void }) {
 /* ---------- окно карточки ---------- */
 function EntryDialog(props: {
   entry: Entry;
+  entries: Entry[];
+  refs: Refs;
+  onOpen: (id: string) => void;
   sections: Section[];
   places: Place[];
   placeTaken: (placeId: string) => string | undefined;
@@ -774,15 +804,14 @@ function EntryDialog(props: {
             <span>Подпись над названием</span>
             <input value={e.kind || ""} placeholder="ягода, зелье, лес… можно оставить пустым" onChange={(ev) => props.onField("kind", ev.target.value)} />
           </label>
-          <label className="ed-field">
-            <span>Описание</span>
-            <textarea rows={9} value={e.text} onChange={(ev) => props.onPatch({ text: ev.target.value })} />
-            <small>Пустая строка — новый абзац. На карточке видно начало первого абзаца, целиком текст — при открытии.</small>
-          </label>
-          <label className="ed-field">
-            <span>Интересный факт</span>
-            <textarea rows={3} value={e.fact || ""} placeholder="Можно оставить пустым" onChange={(ev) => props.onField("fact", ev.target.value)} />
-          </label>
+          <TextField
+            entry={e}
+            entries={props.entries}
+            sections={sections}
+            refs={props.refs}
+            onChange={(text) => props.onPatch({ text })}
+            onOpen={props.onOpen}
+          />
           <div className="ed-grid2">
             <label className="ed-field">
               <span>Раздел</span>
@@ -825,6 +854,171 @@ function EntryDialog(props: {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- описание: ссылки на карточки и примечания ---------- */
+function TextField(props: {
+  entry: Entry;
+  entries: Entry[];
+  sections: Section[];
+  refs: Refs;
+  onChange: (text: string) => void;
+  onOpen: (id: string) => void;
+}) {
+  const { entry: e } = props;
+  const ta = useRef<HTMLTextAreaElement>(null);
+  const [tab, setTab] = useState<"edit" | "preview">("edit");
+  const [picker, setPicker] = useState(false);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState("");
+
+  /** Заменить выделение в описании; caret — куда поставить курсор (от начала вставки) */
+  const replaceSelection = (make: (sel: string, before: string, after: string) => { text: string; caret?: number }) => {
+    const el = ta.current;
+    const v = e.text;
+    const a = el ? el.selectionStart : v.length;
+    const b = el ? el.selectionEnd : v.length;
+    const r = make(v.slice(a, b), v.slice(0, a), v.slice(b));
+    props.onChange(v.slice(0, a) + r.text + v.slice(b));
+    const pos = a + (r.caret ?? r.text.length);
+    requestAnimationFrame(() => {
+      ta.current?.focus();
+      ta.current?.setSelectionRange(pos, pos);
+    });
+  };
+
+  const openPicker = () => {
+    const el = ta.current;
+    setSelected(el ? e.text.slice(el.selectionStart, el.selectionEnd).trim() : "");
+    setQuery("");
+    setTab("edit");
+    setPicker(true);
+  };
+
+  const insertLink = (target: Entry) => {
+    setPicker(false);
+    replaceSelection((sel) => {
+      const words = sel.trim();
+      // выделенные слова становятся текстом ссылки; пробелы по краям выделения сохраняем
+      const lead = sel.match(/^\s*/)![0];
+      const tail = sel.match(/\s*$/)![0];
+      const link = words ? `[[${target.id}|${words}]]` : `[[${target.id}]]`;
+      return { text: words ? lead + link + tail : link };
+    });
+  };
+
+  const insertNote = () => {
+    setTab("edit");
+    replaceSelection((sel, before, after) => {
+      // примечание — отдельный абзац: отделяем его пустыми строками
+      const pre = before === "" ? "" : before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+      const post = after === "" ? "" : after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+      const body = sel.trim()
+        ? sel
+            .trim()
+            .split("\n")
+            .map((l) => "> " + l)
+            .join("\n")
+        : "> Примечание: ";
+      return { text: pre + body + post, caret: pre.length + body.length };
+    });
+  };
+
+  const q = query.trim().toLowerCase();
+  const secName = (id: string) => props.sections.find((s) => s.id === id)?.name || "";
+  const found = props.entries
+    .filter((x) => x.id !== e.id && (!q || x.name.toLowerCase().includes(q)))
+    .sort((x, y) => x.name.localeCompare(y.name, "ru"));
+
+  return (
+    <div className="ed-field">
+      <span>Описание</span>
+      <div className="ed-toolbar">
+        <button type="button" className={"ed-tab" + (tab === "edit" ? " on" : "")} onClick={() => setTab("edit")}>
+          Текст
+        </button>
+        <button type="button" className={"ed-tab" + (tab === "preview" ? " on" : "")} onClick={() => setTab("preview")}>
+          Как будет выглядеть
+        </button>
+        <span className="ed-spacer" />
+        <button type="button" className="ed-tool" onClick={openPicker} title="Ссылка на другую карточку. Выделите слова в тексте (например, имя друга) и нажмите — они станут ссылкой">
+          <span className="ed-tool-link">а</span> Ссылка
+        </button>
+        <button type="button" className="ed-tool" onClick={insertNote} title="Абзац в жёлтой рамке. Если что-то выделено — оно станет примечанием">
+          <span className="ed-tool-note" /> Примечание
+        </button>
+      </div>
+
+      {picker && (
+        <div className="ed-picker">
+          <div className="ed-row">
+            <input
+              autoFocus
+              value={query}
+              placeholder="Найти карточку по названию"
+              onChange={(ev) => setQuery(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Escape") {
+                  ev.stopPropagation();
+                  setPicker(false);
+                }
+                if (ev.key === "Enter" && found[0]) {
+                  ev.preventDefault();
+                  insertLink(found[0]);
+                }
+              }}
+            />
+            <button type="button" className="ed-btn ghost" onClick={() => setPicker(false)}>
+              Отмена
+            </button>
+          </div>
+          <small>
+            {selected ? (
+              <>
+                Ссылкой станут слова «<b>{selected}</b>».
+              </>
+            ) : (
+              "Слова не выделены — в текст встанет название карточки. Чтобы ссылкой стали ваши слова (например, «Шушиня»), сначала выделите их в тексте."
+            )}
+          </small>
+          <ul>
+            {found.slice(0, 40).map((x) => (
+              <li key={x.id}>
+                <button type="button" onClick={() => insertLink(x)}>
+                  <b>{x.name || "Без названия"}</b>
+                  <i>{secName(x.section)}</i>
+                </button>
+              </li>
+            ))}
+            {found.length === 0 && <li className="ed-hint">Ничего не нашлось</li>}
+          </ul>
+        </div>
+      )}
+
+      {tab === "edit" ? (
+        <textarea ref={ta} rows={10} value={e.text} onChange={(ev) => props.onChange(ev.target.value)} />
+      ) : (
+        <div className="ed-preview">
+          {e.text.trim() ? (
+            <RichText
+              text={e.text}
+              refs={props.refs}
+              onLink={(id, ev) => {
+                ev.preventDefault();
+                props.onOpen(id);
+              }}
+            />
+          ) : (
+            <p className="ed-hint">Описание пока пустое.</p>
+          )}
+        </div>
+      )}
+      <small>
+        Пустая строка — новый абзац. Ссылка выглядит как <code>[[адрес|слова]]</code>, примечание — абзац, который начинается с <code>&gt;</code>;
+        «<code>&gt; Заголовок: текст</code>» — примечание с заголовком. В «Как будет выглядеть» по ссылке можно перейти к той карточке.
+      </small>
     </div>
   );
 }

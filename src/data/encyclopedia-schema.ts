@@ -6,8 +6,15 @@
      раздел:   id, name, lead (строка на плашке), forms (1 / 2 / 5: «персонаж,
                персонажа, персонажей»), icon (ключ из ICONS), color (ключ из PALETTE)
      карточка: id (латиница, уникальный), section (id раздела), name, kind (подпись
-               над названием), text (абзацы через пустую строку), fact, image
-               ("/encyclopedia/имя.webp"), map (id места из world.ts)
+               над названием), text (см. ниже), image ("/encyclopedia/имя.webp"),
+               map (id места из world.ts). Старое поле fact само переезжает в text.
+
+   Разметка описания (text):
+     абзацы         — через пустую строку
+     [[id]]         — ссылка на карточку, в тексте её название
+     [[id|слова]]   — ссылка на карточку, в тексте «слова» (нужный падеж: [[shushin|Шушиня]])
+     > текст        — абзац-примечание в жёлтой рамке
+     > Заголовок: … — примечание с заголовком («Интересный факт: …»)
    ===================================================================== */
 
 import type { CSSProperties } from "react";
@@ -118,16 +125,98 @@ export function normalizeData(input: unknown): EncyclopediaData {
   });
   const entries: Entry[] = o.entries.map((raw) => {
     const e = (raw || {}) as Record<string, unknown>;
-    const out: Entry = { id: str(e.id), section: str(e.section), name: str(e.name), text: str(e.text) };
     const kind = opt(e.kind), fact = opt(e.fact), image = opt(e.image), map = opt(e.map);
+    // старое поле «Интересный факт» становится примечанием в конце описания
+    const text = [str(e.text), fact ? `> Интересный факт: ${fact.replace(/\n+/g, " ")}` : ""].filter(Boolean).join("\n\n");
+    const out: Entry = { id: str(e.id), section: str(e.section), name: str(e.name), text };
     if (kind) out.kind = kind;
-    if (fact) out.fact = fact;
     if (image) out.image = image;
     if (map) out.map = map;
     return out;
   });
   return { sections, entries };
 }
+
+/* ---------- разметка описания: ссылки и примечания ---------- */
+
+const LINK_RE = /\[\[([a-z0-9-]+)(?:\|([^\]\n]*))?\]\]/g;
+
+/** Куда ведут ссылки [[id]]: название и адрес карточки */
+export type Refs = Record<string, { name: string; url: string }>;
+
+export type Inline ={ t: "text"; s: string } | { t: "link"; id: string; label?: string };
+export type Block = { t: "p"; text: string } | { t: "note"; title?: string; text: string };
+
+/** Текст абзаца → куски текста и ссылки */
+export function parseInline(s: string): Inline[] {
+  const out: Inline[] = [];
+  let last = 0;
+  for (const m of s.matchAll(LINK_RE)) {
+    if (m.index! > last) out.push({ t: "text", s: s.slice(last, m.index) });
+    out.push({ t: "link", id: m[1], label: m[2]?.trim() || undefined });
+    last = m.index! + m[0].length;
+  }
+  if (last < s.length) out.push({ t: "text", s: s.slice(last) });
+  return out;
+}
+
+/** Описание → абзацы и примечания (абзац, который начинается с «>») */
+export function parseBlocks(text: string): Block[] {
+  return text
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map((b): Block => {
+      if (!b.startsWith(">")) return { t: "p", text: b };
+      const body = b
+        .split("\n")
+        .map((l) => l.replace(/^\s*>\s?/, ""))
+        .join("\n")
+        .trim();
+      const m = body.match(/^([^:\n[\]]{1,40}):\s+([\s\S]+)$/);
+      return m ? { t: "note", title: m[1].trim(), text: m[2] } : { t: "note", text: body };
+    });
+}
+
+type NameOf = (id: string) => string | undefined;
+
+const blockPlain = (b: Block, nameOf: NameOf) => {
+  const inner = parseInline(b.text)
+    .map((x) => (x.t === "text" ? x.s : x.label || nameOf(x.id) || ""))
+    .join("");
+  return b.t === "note" && b.title ? `${b.title}: ${inner}` : inner;
+};
+
+/** Описание без разметки: ссылки → слова, примечания → «Заголовок: текст» */
+export const plainText = (text: string, nameOf: NameOf) =>
+  parseBlocks(text)
+    .map((b) => blockPlain(b, nameOf))
+    .join("\n\n");
+
+/** Первый обычный абзац без разметки — для превью карточки */
+export function firstParagraph(text: string, nameOf: NameOf): string {
+  const blocks = parseBlocks(text);
+  const b = blocks.find((x) => x.t === "p") || blocks[0];
+  return b ? blockPlain(b, nameOf) : "";
+}
+
+/** Ссылки на карточки, которых нет */
+export function linkProblems(d: EncyclopediaData): string[] {
+  const ids = new Set(d.entries.map((e) => e.id));
+  const out: string[] = [];
+  for (const e of d.entries)
+    for (const m of e.text.matchAll(LINK_RE))
+      if (!ids.has(m[1])) out.push(`Карточка «${e.name || "без названия"}»: ссылка на несуществующую карточку «${m[2] || m[1]}» (${m[1]})`);
+  return out;
+}
+
+/** Поменялся адрес карточки — чиним ссылки на неё */
+export const renameLinks = (text: string, from: string, to: string) =>
+  text.replace(LINK_RE, (all, id: string, label?: string) => (id === from ? `[[${to}${label !== undefined ? "|" + label : ""}]]` : all));
+
+/** Карточку удалили — ссылки на неё превращаются в обычный текст */
+export const unlink = (text: string, id: string, name: string) =>
+  text.replace(LINK_RE, (all, target: string, label?: string) => (target === id ? label?.trim() || name : all));
 
 /** Как файл выглядит на диске */
 export const serializeData = (d: EncyclopediaData) => JSON.stringify(d, null, 2) + "\n";

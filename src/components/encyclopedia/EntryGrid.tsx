@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { Entry, IconKey } from "@/data/encyclopedia-schema";
+import { firstParagraph, type Entry, type IconKey, type Refs } from "@/data/encyclopedia-schema";
 import { SectionIcon } from "@/components/site/Icons";
+import RichText from "./RichText";
 
 export type EntryView = Entry & { mapUrl?: string };
-
-const paragraphs = (t: string) => t.split(/\n\s*\n/).filter(Boolean);
 
 /** Картинка карточки или заглушка: первая буква и значок раздела */
 export function Picture({ e, icon, big }: { e: Pick<Entry, "name" | "image">; icon: IconKey; big?: boolean }) {
@@ -29,10 +28,22 @@ export function Picture({ e, icon, big }: { e: Pick<Entry, "name" | "image">; ic
  * Сетка карточек. По нажатию карточка открывается крупно (полный текст, факт, ссылка на карту).
  * Открытая карточка записывается в адрес (#id), поэтому ссылкой на неё можно поделиться.
  */
-export default function EntryGrid({ entries, sectionName, sectionIcon }: { entries: EntryView[]; sectionName: string; sectionIcon: IconKey }) {
+export default function EntryGrid({
+  entries,
+  sectionName,
+  sectionIcon,
+  refs,
+}: {
+  entries: EntryView[];
+  sectionName: string;
+  sectionIcon: IconKey;
+  /** все карточки энциклопедии — для ссылок в описаниях */
+  refs: Refs;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
   const dlg = useRef<HTMLDialogElement>(null);
   const open = entries.find((e) => e.id === openId) || null;
+  const nameOf = (id: string) => refs[id]?.name;
 
   // #id в адресе → открыть карточку (при загрузке и при смене хэша)
   useEffect(() => {
@@ -55,6 +66,7 @@ export default function EntryGrid({ entries, sectionName, sectionIcon }: { entri
   const show = (id: string) => {
     window.history.replaceState(null, "", `#${id}`);
     setOpenId(id);
+    dlg.current?.scrollTo({ top: 0 });
   };
   const onClosed = () => {
     setOpenId(null);
@@ -78,7 +90,7 @@ export default function EntryGrid({ entries, sectionName, sectionIcon }: { entri
               <div className="card-body">
                 {e.kind && <span className="kind">{e.kind}</span>}
                 <h3>{e.name}</h3>
-                <p>{paragraphs(e.text)[0]}</p>
+                <p>{firstParagraph(e.text, nameOf)}</p>
                 {e.mapUrl && <span className="on-map">есть на карте</span>}
               </div>
             </a>
@@ -105,15 +117,17 @@ export default function EntryGrid({ entries, sectionName, sectionIcon }: { entri
             <div className="entry-body">
               <span className="kind">{open.kind ? `${sectionName} · ${open.kind}` : sectionName}</span>
               <h2>{open.name}</h2>
-              {paragraphs(open.text).map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
-              {open.fact && (
-                <aside className="fact">
-                  <b>Интересный факт</b>
-                  {open.fact}
-                </aside>
-              )}
+              <RichText
+                text={open.text}
+                refs={refs}
+                onLink={(id, ev) => {
+                  // карточка из этого же раздела — открываем её здесь же; из другого — переходим на его страницу
+                  if (entries.some((e) => e.id === id)) {
+                    ev.preventDefault();
+                    show(id);
+                  }
+                }}
+              />
               {open.mapUrl && (
                 <Link className="to-map" href={open.mapUrl}>
                   Показать на карте →
