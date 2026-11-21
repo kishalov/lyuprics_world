@@ -24,7 +24,7 @@ export default function RichText({
       return (
         <Link
           key={i}
-          className={"xref " + target.kind}
+          className={"xref xref-" + target.kind}
           href={target.url}
           title={target.hint ? `${target.name} · ${target.hint}` : target.name}
           onClick={onLink ? (ev) => onLink(x.ref, ev) : undefined}

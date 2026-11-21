@@ -14,6 +14,7 @@ import {
   PALETTE,
   buildRefs,
   firstParagraph,
+  linkAt,
   linkMarkup,
   linkProblems,
   mentions,
@@ -952,8 +953,24 @@ function TextField(props: {
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [picker, setPicker] = useState(false);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState("");
   const [kind, setKind] = useState<LinkKind | "all">("all");
+  /** текст ссылки: слово или целая фраза */
+  const [label, setLabel] = useState("");
+  /** что в описании заменит ссылка: выделение или уже существующая ссылка (lead/tail — пробелы по краям выделения) */
+  const [range, setRange] = useState<{ a: number; b: number; lead: string; tail: string } | null>(null);
+  /** правим уже вставленную ссылку — куда она ведёт сейчас */
+  const [editing, setEditing] = useState<RefKey | null>(null);
+
+  /** Заменить кусок описания [a, b) и поставить курсор после вставки */
+  const replaceRange = (a: number, b: number, text: string) => {
+    const v = e.text;
+    props.onChange(v.slice(0, a) + text + v.slice(b));
+    const pos = a + text.length;
+    requestAnimationFrame(() => {
+      ta.current?.focus();
+      ta.current?.setSelectionRange(pos, pos);
+    });
+  };
 
   /** Заменить выделение в описании; caret — куда поставить курсор (от начала вставки) */
   const replaceSelection = (make: (sel: string, before: string, after: string) => { text: string; caret?: number }) => {
@@ -972,7 +989,21 @@ function TextField(props: {
 
   const openPicker = () => {
     const el = ta.current;
-    setSelected(el ? e.text.slice(el.selectionStart, el.selectionEnd).trim() : "");
+    const v = e.text;
+    const a = el && tab === "edit" ? el.selectionStart : v.length;
+    const b = el && tab === "edit" ? el.selectionEnd : v.length;
+    const hit = linkAt(v, a, b);
+    if (hit) {
+      // курсор внутри ссылки — правим её
+      setEditing(hit.ref);
+      setLabel(hit.label || "");
+      setRange({ a: hit.start, b: hit.end, lead: "", tail: "" });
+    } else {
+      const sel = v.slice(a, b);
+      setEditing(null);
+      setLabel(sel.trim());
+      setRange({ a, b, lead: sel.match(/^\s*/)![0], tail: sel.match(/\s*$/)![0] });
+    }
     setQuery("");
     setKind("all");
     setTab("edit");
@@ -981,13 +1012,15 @@ function TextField(props: {
 
   const insertLink = (key: RefKey) => {
     setPicker(false);
-    replaceSelection((sel) => {
-      const words = sel.trim();
-      // выделенные слова становятся текстом ссылки; пробелы по краям выделения сохраняем
-      const lead = sel.match(/^\s*/)![0];
-      const tail = sel.match(/\s*$/)![0];
-      return { text: words ? lead + linkMarkup(key, words) + tail : linkMarkup(key) };
-    });
+    const r = range || { a: e.text.length, b: e.text.length, lead: "", tail: "" };
+    replaceRange(r.a, r.b, r.lead + linkMarkup(key, label.trim()) + r.tail);
+  };
+
+  /** Убрать ссылку — останется обычный текст */
+  const removeLink = () => {
+    if (!range || !editing) return;
+    setPicker(false);
+    replaceRange(range.a, range.b, label.trim() || refs[editing]?.name || "");
   };
 
   const insertNote = () => {
@@ -1033,7 +1066,7 @@ function TextField(props: {
           type="button"
           className="ed-tool"
           onClick={openPicker}
-          title="Ссылка на карточку, раздел, место на карте или страницу сайта. Выделите слова в тексте и нажмите — они станут ссылкой"
+          title="Ссылка на карточку, раздел, место на карте или страницу сайта. Выделите слово или фразу и нажмите — они станут ссылкой. Курсор внутри ссылки — поправить её"
         >
           <span className="ed-tool-link">а</span> Ссылка
         </button>
@@ -1044,11 +1077,46 @@ function TextField(props: {
 
       {picker && (
         <div className="ed-picker">
+          <label className="ed-link-label">
+            <span>Текст ссылки</span>
+            <input
+              autoFocus={!!editing}
+              onFocus={(ev) => ev.target.select()}
+              value={label}
+              placeholder={editing ? refs[editing]?.name : "Слово или целая фраза; если пусто — название того, на что ссылка"}
+              onChange={(ev) => setLabel(ev.target.value.replace(/[[\]\n]/g, ""))}
+              onKeyDown={(ev) => {
+                if (ev.key === "Escape") {
+                  ev.stopPropagation();
+                  setPicker(false);
+                }
+                if (ev.key === "Enter") {
+                  ev.preventDefault();
+                  if (editing) insertLink(editing);
+                }
+              }}
+            />
+          </label>
+          {editing && (
+            <div className="ed-row ed-editing">
+              <span>
+                Сейчас ведёт на: <b>{refs[editing]?.name || editing}</b>
+                {refs[editing]?.hint && <i> · {refs[editing].hint}</i>}
+              </span>
+              <span className="ed-spacer" />
+              <button type="button" className="ed-btn primary" onClick={() => insertLink(editing)}>
+                Сохранить
+              </button>
+              <button type="button" className="ed-btn ghost" onClick={removeLink}>
+                Убрать ссылку
+              </button>
+            </div>
+          )}
           <div className="ed-row">
             <input
-              autoFocus
+              autoFocus={!editing}
               value={query}
-              placeholder="Найти: карточку, раздел, место на карте…"
+              placeholder={editing ? "Чтобы поменять, куда ведёт ссылка, найдите другое…" : "Куда ведёт: найдите карточку, раздел, место на карте…"}
               onChange={(ev) => setQuery(ev.target.value)}
               onKeyDown={(ev) => {
                 if (ev.key === "Escape") {
@@ -1073,13 +1141,8 @@ function TextField(props: {
             ))}
           </div>
           <small>
-            {selected ? (
-              <>
-                Ссылкой станут слова «<b>{selected}</b>».
-              </>
-            ) : (
-              "Слова не выделены — в текст встанет название. Чтобы ссылкой стали ваши слова (например, «Шушиня»), сначала выделите их в тексте."
-            )}
+            Текстом ссылки может быть любое слово или фраза — например, «живёт на Питучих холмах». Проще всего выделить её в описании перед нажатием «Ссылка».
+            Чтобы поправить готовую ссылку, поставьте курсор внутрь неё и снова нажмите «Ссылка».
           </small>
           <ul>
             {groups.map((g) => (

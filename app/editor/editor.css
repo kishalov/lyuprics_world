@@ -142,6 +142,14 @@
 .ed-picker li button:hover, .ed-picker li button:focus-visible { background: var(--accent2); outline: none; }
 .ed-picker li b { font-weight: 600; }
 .ed-picker li i { font-style: normal; font-size: 12.5px; color: var(--ink2); margin-left: auto; }
+.ed-link-label { display: flex; flex-direction: column; gap: 4px; }
+.ed-link-label > span { font-size: 12.5px; font-weight: 700; color: var(--ink2); }
+.ed-link-label input { width: 100%; font: 600 15px/1.4 var(--body); color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 7px 10px;
+  border-bottom: 2px dashed var(--accent); outline: none; }
+.ed-link-label input:focus { box-shadow: 0 0 0 4px var(--glow); }
+.ed-editing { padding: 8px 10px; background: #fdf3c8; border: 2px solid var(--ink); border-radius: 10px; font-size: 14px; }
+.ed-editing i { font-style: normal; color: var(--ink2); font-size: 12.5px; }
+.ed-editing .ed-btn { font-size: 16px; padding: 4px 12px 5px; }
 .ed-kinds { display: flex; flex-wrap: wrap; gap: 4px; }
 .ed-picker .ed-group { display: block; }
 .ed-group-title { margin: 6px 10px 2px; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink2); }

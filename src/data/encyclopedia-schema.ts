@@ -306,6 +306,17 @@ export const renameLinks = (text: string, from: RefKey, to: RefKey) =>
 export const unlink = (text: string, key: RefKey, name: string) =>
   text.replace(LINK_RE, (all, kind: string | undefined, id: string, label?: string) => (keyOf(kind, id) === key ? label?.trim() || name : all));
 
+/** Ссылка, внутри которой стоит курсор (или которую задевает выделение): где она в тексте, куда ведёт и с каким текстом */
+export function linkAt(text: string, from: number, to = from): { start: number; end: number; ref: RefKey; label?: string } | null {
+  for (const m of text.matchAll(LINK_RE)) {
+    const start = m.index!;
+    const end = start + m[0].length;
+    if (from < end && to > start) return { start, end, ref: keyOf(m[1], m[2]), label: m[3]?.trim() || undefined };
+    if (from === to && from > start && from < end) return { start, end, ref: keyOf(m[1], m[2]), label: m[3]?.trim() || undefined };
+  }
+  return null;
+}
+
 /** Есть ли в тексте ссылка на эту цель */
 export const mentions = (text: string, key: RefKey) => [...text.matchAll(LINK_RE)].some((m) => keyOf(m[1], m[2]) === key);
 
